@@ -35,8 +35,17 @@ class PresetRow(Base):
     )
 
 
+def _normalize_url(url: str) -> str:
+    """Managed hosts (Railway, Heroku) hand out postgres:// URLs; SQLAlchemy
+    needs the explicit psycopg3 dialect."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 def make_engine(database_url: str = None):
-    url = database_url or os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+    url = _normalize_url(database_url or os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL))
     if url.startswith("sqlite"):
         # tests: one shared in-memory connection, usable across threads
         from sqlalchemy.pool import StaticPool

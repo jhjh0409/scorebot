@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.api.db import _normalize_url
 from backend.api.main import create_app
 from backend.pipeline.models import Basics, JSONResume
 from backend.pipeline.presets import Preset, RubricDimension
@@ -54,6 +55,20 @@ def wait_for_done(client, job_id, timeout=5.0):
 class TestHealth:
     def test_health(self, client):
         assert client.get("/api/health").json() == {"status": "ok"}
+
+
+class TestDatabaseUrlNormalization:
+    def test_managed_host_urls_get_psycopg_dialect(self):
+        assert _normalize_url("postgres://u:p@host:5432/db") == (
+            "postgresql+psycopg://u:p@host:5432/db"
+        )
+        assert _normalize_url("postgresql://u:p@host/db") == (
+            "postgresql+psycopg://u:p@host/db"
+        )
+
+    def test_explicit_and_sqlite_urls_untouched(self):
+        assert _normalize_url("postgresql+psycopg://u@h/db") == "postgresql+psycopg://u@h/db"
+        assert _normalize_url("sqlite://") == "sqlite://"
 
 
 class TestPresetCrud:
