@@ -12,9 +12,11 @@ React SPA.
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -165,6 +167,12 @@ def create_app(database_url: str = None) -> FastAPI:
         if job is None:
             raise HTTPException(404, "Screening not found (results are in-memory and cleared on restart)")
         return ScreeningJobOut.from_job(job)
+
+    # ---- SPA (built by `pnpm build` in frontend/; absent in dev, where vite serves it) ----
+
+    spa_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+    if spa_dist.is_dir():
+        app.mount("/", StaticFiles(directory=spa_dist, html=True), name="spa")
 
     return app
 

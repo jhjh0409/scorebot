@@ -10,14 +10,14 @@ LLM evaluation loop form the core of `backend/pipeline/`. See [LICENSE](LICENSE)
 
 ## Status
 
-Phase 2 — the API is live: async screening jobs plus Postgres-backed, editable presets.
+Phase 3 — the web app is usable end to end: drop PDFs, watch the pile rank itself, tune presets in the UI.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Repo bootstrap, package layout, CLI parity | ✅ |
 | 1 | Preset-driven rubrics (weighted dimensions, normalized to 100) + tests | ✅ |
 | 2 | FastAPI + async screening jobs + Postgres-backed presets | ✅ |
-| 3 | React SPA (multi-file drop, live results table, preset editor) | — |
+| 3 | React SPA (multi-file drop, live results table, preset editor) | ✅ |
 | 4 | Railway deploy | — |
 
 Design decisions (locked): stateless v1 (no auth, no PDF retention, no stored
@@ -78,12 +78,24 @@ spends one LLM call.
 
 Tests: `.venv/bin/python -m pytest backend/tests`
 
-## API
+## Web app
 
 ```bash
 docker compose up -d postgres          # presets DB on localhost:5434
-.venv/bin/uvicorn backend.api.main:app --reload
+cd frontend && pnpm install && pnpm build && cd ..   # build the SPA once
+.venv/bin/uvicorn backend.api.main:app --reload      # serves app + API on :8000
 ```
+
+Open http://localhost:8000 — drop resume PDFs, pick a role preset, and the
+results table fills in live (parsing → GitHub analysis → scoring). Click a row
+for the full breakdown: score ring, per-dimension evidence, strengths, and
+concerns. The Presets tab edits rubrics (dimensions, weights, guidance,
+enrichment toggles) with live weight normalization.
+
+For frontend development: `cd frontend && pnpm dev` (vite on :5173, proxying
+/api to :8000). The design source lives in `docs/design/scorebot-A.dc.html`.
+
+## API
 
 - `POST /api/screenings` (multipart `file` PDF + `preset_id` form field) → `202` with a job id
 - `GET /api/screenings/{id}` — poll status: `queued → parsing → enriching → scoring → done|failed`, result included when done
