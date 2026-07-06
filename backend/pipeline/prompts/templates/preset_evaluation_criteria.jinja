@@ -1,0 +1,33 @@
+You are scoring a resume for the role: **{{ preset_name }}**
+
+## ROLE CONTEXT
+
+{{ role_description }}
+
+## RUBRIC
+
+Score the resume on the following {{ dimensions|length }} dimensions. For each dimension give an integer score from 0 to 10 (see the calibration in your instructions) and cite concrete evidence from the resume.
+
+{% for d in dimensions %}
+### {{ loop.index }}. {{ d.name }} (JSON key: "{{ d.key }}")
+{{ d.guidance }}
+
+{% endfor %}
+## RESUME
+
+{{ text_content }}
+
+## OUTPUT
+
+Return ONLY valid JSON with EXACTLY this structure (all {{ dimensions|length }} dimension keys required):
+
+{
+    "dimension_scores": {
+{% for d in dimensions %}
+        "{{ d.key }}": {"score": 0, "evidence": "string"}{{ "," if not loop.last }}
+{% endfor %}
+    },
+    "key_strengths": ["string"],
+    "concerns": ["string"],
+    "verdict": "string"
+}

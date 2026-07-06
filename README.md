@@ -10,12 +10,12 @@ LLM evaluation loop form the core of `backend/pipeline/`. See [LICENSE](LICENSE)
 
 ## Status
 
-Phase 0 — the upstream pipeline restructured into an app layout, CLI-parity preserved.
+Phase 1 — scoring is preset-driven; the CLI screens a resume against any role preset.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Repo bootstrap, package layout, CLI parity | ✅ |
-| 1 | Preset-driven rubrics (weighted dimensions, normalized to 100) + tests | — |
+| 1 | Preset-driven rubrics (weighted dimensions, normalized to 100) + tests | ✅ |
 | 2 | FastAPI + async screening jobs + Postgres-backed presets | — |
 | 3 | React SPA (multi-file drop, live results table, preset editor) | — |
 | 4 | Railway deploy | — |
@@ -62,12 +62,21 @@ to raise GitHub API rate limits for enrichment.
 ## Usage
 
 ```bash
-.venv/bin/python -m backend.cli path/to/resume.pdf
+.venv/bin/python -m backend.cli path/to/resume.pdf --preset software-engineer
+.venv/bin/python -m backend.cli path/to/resume.pdf --preset bd-intern --json
 ```
 
-Prints per-category scores with evidence, strengths, and areas for improvement.
-With `DEVELOPMENT_MODE = True` (see `backend/pipeline/config.py`), extraction and
-GitHub results are cached in `cache/` and rows are appended to `resume_evaluations.csv`.
+Presets (`backend/pipeline/presets.py`): `software-engineer` (GitHub enrichment on),
+`bd-intern`, `marketing-intern`. Each preset is a set of weighted rubric dimensions;
+the LLM scores each dimension 0–10 with evidence, and the weighted overall score
+(0–100) is computed in code. Results include strengths, concerns, a one-line
+verdict, and a snapshot of the rubric used.
+
+With `DEVELOPMENT_MODE = True` (see `backend/pipeline/config.py`), the parse and
+GitHub steps are cached in `cache/`, so re-scoring with a different preset only
+spends one LLM call.
+
+Tests: `.venv/bin/python -m pytest backend/tests`
 
 ## Attribution
 

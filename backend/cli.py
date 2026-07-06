@@ -1,309 +1,148 @@
-import os
-import sys
+"""
+scorebot CLI: score a resume PDF against a role preset.
+
+Usage:
+    python -m backend.cli <resume.pdf> [--preset software-engineer]
+
+With DEVELOPMENT_MODE enabled (backend/pipeline/config.py), the parse and
+GitHub-enrichment steps are cached under cache/ so rubric iterations don't
+re-spend LLM calls.
+"""
+
+import argparse
 import json
 import logging
-import csv
-from .pipeline.pdf import PDFHandler
-from .pipeline.github import fetch_and_display_github_info
-from .pipeline.models import JSONResume, EvaluationData
-from typing import List, Optional, Dict
-from .pipeline.evaluator import ResumeEvaluator
+import os
+import sys
 from pathlib import Path
-from .pipeline.prompt import DEFAULT_MODEL, MODEL_PARAMETERS
-from .pipeline.transform import (
-    transform_evaluation_response,
-    convert_json_resume_to_text,
-    convert_github_data_to_text,
-    convert_blog_data_to_text,
-)
-from .pipeline.config import DEVELOPMENT_MODE
 
-logger = logging.getLogger(__name__)
+from .pipeline import screening
+from .pipeline.config import DEVELOPMENT_MODE
+from .pipeline.models import JSONResume
+from .pipeline.presets import PRESETS_BY_ID, get_preset
+from .pipeline.prompt import DEFAULT_MODEL
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s",
 )
+logger = logging.getLogger(__name__)
 
 
-def print_evaluation_results(
-    evaluation: EvaluationData, candidate_name: str = "Candidate"
-):
-    """Print evaluation results in a readable format."""
+def print_result(result: screening.ScreeningResult) -> None:
     print("\n" + "=" * 80)
-    print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
+    print(f"📊 SCREENING RESULT: {result.candidate_name or 'Unknown candidate'}")
+    print(f"🧾 Preset: {result.preset_name} ({result.preset_id})")
     print("=" * 80)
+    print(f"\n🎯 OVERALL SCORE: {result.overall_score:.1f}/100")
+    print(f"🗣️  Verdict: {result.verdict}")
 
-    if not evaluation:
-        print("❌ No evaluation data available")
-        return
-
-    # Calculate overall score
-    total_score = 0
-    max_score = 0
-
-    if hasattr(evaluation, "scores") and evaluation.scores:
-        for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
-            total_score += category_score
-            max_score += category_data["max"]
-
-            # Log warning if score was capped
-            if category_score < category_data["score"]:
-                print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
-                )
-
-    # Add bonus points
-    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
-        total_score += evaluation.bonus_points.total
-
-    # Subtract deductions
-    if hasattr(evaluation, "deductions") and evaluation.deductions:
-        total_score -= evaluation.deductions.total
-
-    # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
-    if total_score > max_possible_score:
-        total_score = max_possible_score
-        print(f"⚠️  Warning: Total score capped at maximum possible value")
-
-    # Overall Score
-    print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
-
-    # Detailed Scores
-    print("\n📈 DETAILED SCORES:")
+    print("\n📈 DIMENSIONS:")
     print("-" * 60)
+    for dim in result.dimensions:
+        weight_pct = dim.weight * 100
+        print(f"• {dim.name}  ({dim.score}/10, weight {weight_pct:.0f}%)")
+        print(f"  Evidence: {dim.evidence}")
+        print()
 
-    if hasattr(evaluation, "scores") and evaluation.scores:
-        # Define category maximums
-        category_maxes = {
-            "open_source": 35,
-            "self_projects": 30,
-            "production": 25,
-            "technical_skills": 10,
-        }
+    if result.key_strengths:
+        print("✅ KEY STRENGTHS:")
+        for i, s in enumerate(result.key_strengths, 1):
+            print(f"  {i}. {s}")
 
-        # Open Source
-        if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
-            os_score = evaluation.scores.open_source
-            capped_score = min(os_score.score, category_maxes["open_source"])
-            print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
-            print(f"   Evidence: {os_score.evidence}")
-            print()
-
-        # Self Projects
-        if (
-            hasattr(evaluation.scores, "self_projects")
-            and evaluation.scores.self_projects
-        ):
-            sp_score = evaluation.scores.self_projects
-            capped_score = min(sp_score.score, category_maxes["self_projects"])
-            print(f"🚀 Self Projects:        {capped_score}/{sp_score.max}")
-            print(f"   Evidence: {sp_score.evidence}")
-            print()
-
-        # Production Experience
-        if hasattr(evaluation.scores, "production") and evaluation.scores.production:
-            prod_score = evaluation.scores.production
-            capped_score = min(prod_score.score, category_maxes["production"])
-            print(f"🏢 Production Experience: {capped_score}/{prod_score.max}")
-            print(f"   Evidence: {prod_score.evidence}")
-            print()
-
-        # Technical Skills
-        if (
-            hasattr(evaluation.scores, "technical_skills")
-            and evaluation.scores.technical_skills
-        ):
-            tech_score = evaluation.scores.technical_skills
-            capped_score = min(tech_score.score, category_maxes["technical_skills"])
-            print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
-            print(f"   Evidence: {tech_score.evidence}")
-            print()
-
-    # Bonus Points
-    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
-        print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
-        print("-" * 30)
-        print(f"   {evaluation.bonus_points.breakdown}")
-
-    # Deductions
-    if (
-        hasattr(evaluation, "deductions")
-        and evaluation.deductions
-        and evaluation.deductions.total > 0
-    ):
-        print(f"\n⚠️  DEDUCTIONS: -{evaluation.deductions.total}")
-        print("-" * 30)
-        if evaluation.deductions.reasons:
-            print(f"   {evaluation.deductions.reasons}")
-
-    # Key Strengths
-    if hasattr(evaluation, "key_strengths") and evaluation.key_strengths:
-        print(f"\n✅ KEY STRENGTHS:")
-        print("-" * 30)
-        for i, strength in enumerate(evaluation.key_strengths, 1):
-            print(f"  {i}. {strength}")
-
-    # Areas for Improvement
-    if (
-        hasattr(evaluation, "areas_for_improvement")
-        and evaluation.areas_for_improvement
-    ):
-        print(f"\n🔧 AREAS FOR IMPROVEMENT:")
-        print("-" * 30)
-        for i, area in enumerate(evaluation.areas_for_improvement, 1):
-            print(f"  {i}. {area}")
+    if result.concerns:
+        print("\n⚠️  CONCERNS:")
+        for i, c in enumerate(result.concerns, 1):
+            print(f"  {i}. {c}")
 
     print("\n" + "=" * 80)
 
 
-def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
-) -> Optional[EvaluationData]:
-    """Evaluate the resume using AI and display results."""
-
-    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
-    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
-
-    # Convert JSON resume data to text
-    resume_text = convert_json_resume_to_text(resume_data)
-
-    # Add GitHub data if available
-    if github_data:
-        github_text = convert_github_data_to_text(github_data)
-        resume_text += github_text
-
-    # Add blog data if available
-    if blog_data:
-        blog_text = convert_blog_data_to_text(blog_data)
-        resume_text += blog_text
-
-    # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
-
-    # print(evaluation_result)
-
-    return evaluation_result
-
-
-def find_profile(profiles, network):
-    if not profiles:
-        return None
-    return next(
-        (p for p in profiles if p.network and p.network.lower() == network.lower()),
-        None,
-    )
-
-
-def main(pdf_path):
-    # Create cache filename based on PDF path
-    cache_filename = (
+def _cached_parse(pdf_path: str) -> JSONResume:
+    """Parse the PDF, using the dev-mode cache exactly like upstream score.py."""
+    cache_file = Path(
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
-    github_cache_filename = (
+    if DEVELOPMENT_MODE and cache_file.exists():
+        print(f"Loading cached resume data from {cache_file}")
+        return JSONResume(**json.loads(cache_file.read_text()))
+
+    resume = screening.parse_resume(pdf_path)
+    if resume is not None and DEVELOPMENT_MODE:
+        cache_file.parent.mkdir(exist_ok=True)
+        cache_file.write_text(
+            json.dumps(resume.model_dump(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    return resume
+
+
+def _cached_enrich(resume: JSONResume, preset, pdf_path: str) -> dict:
+    """GitHub enrichment with the upstream dev-mode cache, gated by preset."""
+    if not preset.enrichments.github:
+        return {}
+    cache_file = Path(
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
+    if DEVELOPMENT_MODE and cache_file.exists():
+        print(f"Loading cached GitHub data from {cache_file}")
+        return json.loads(cache_file.read_text())
 
-    # Check if cache exists and we're in development mode
-    if DEVELOPMENT_MODE and os.path.exists(cache_filename):
-        print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
-    else:
-        logger.debug(
-            f"Extracting data from PDF"
-            + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
-        )
-        pdf_handler = PDFHandler()
-        resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
-
-        if resume_data == None:
-            return None
-
-        if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
-            )
-
-    # Check if cache exists and we're in development mode
-    github_data = {}
-    if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
-        print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
-        print(
-            f"Fetching GitHub data"
-            + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
-        )
-
-        # Add validation to handle None values
-        profiles = []
-        if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
-            profiles = resume_data.basics.profiles or []
-        github_profile = find_profile(profiles, "Github")
-
-        if github_profile:
-            github_data = fetch_and_display_github_info(github_profile.url)
-        if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
-            Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
-            )
-
-    score = _evaluate_resume(resume_data, github_data)
-
-    # Get candidate name for display
-    candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
-    if (
-        resume_data
-        and hasattr(resume_data, "basics")
-        and resume_data.basics
-        and resume_data.basics.name
-    ):
-        candidate_name = resume_data.basics.name
-
-    # Print evaluation results in readable format
-    print_evaluation_results(score, candidate_name)
-
+    github_data = screening.enrich(resume, preset)
     if DEVELOPMENT_MODE:
-        csv_row = transform_evaluation_response(
-            file_name=os.path.basename(pdf_path),
-            evaluation=score,
-            resume_data=resume_data,
-            github_data=github_data,
+        cache_file.parent.mkdir(exist_ok=True)
+        cache_file.write_text(
+            json.dumps(github_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+    return github_data
 
-        # Write CSV row to file
-        csv_path = "resume_evaluations.csv"
-        file_exists = os.path.exists(csv_path)
 
-        with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
-            fieldnames = list(csv_row.keys())
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m backend.cli",
+        description="Score a resume PDF against a role preset.",
+    )
+    parser.add_argument("pdf_path", help="Path to the resume PDF")
+    parser.add_argument(
+        "--preset",
+        default="software-engineer",
+        choices=sorted(PRESETS_BY_ID),
+        help="Role preset to score against (default: software-engineer)",
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Model to use (default from env: {DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the full result as JSON instead of the readable report",
+    )
+    args = parser.parse_args()
 
-            # Write headers if file doesn't exist
-            if not file_exists:
-                writer.writeheader()
+    if not os.path.exists(args.pdf_path):
+        print(f"Error: File '{args.pdf_path}' does not exist.")
+        return 1
 
-            # Write the row
-            writer.writerow(csv_row)
+    preset = get_preset(args.preset)
 
-    return score
+    resume = _cached_parse(args.pdf_path)
+    if resume is None:
+        print("Error: could not extract resume data from the PDF.")
+        return 1
+
+    github_data = _cached_enrich(resume, preset, args.pdf_path)
+    result = screening.screen_parsed(
+        resume, preset, github_data, model_name=args.model
+    )
+
+    if args.json:
+        print(result.model_dump_json(indent=2))
+    else:
+        print_result(result)
+    return 0
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python -m backend.cli <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
-
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
-        exit(1)
-
-    main(pdf_path)
+    sys.exit(main())
