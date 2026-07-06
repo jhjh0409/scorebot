@@ -10,7 +10,7 @@ LLM evaluation loop form the core of `backend/pipeline/`. See [LICENSE](LICENSE)
 
 ## Status
 
-Phase 3 — the web app is usable end to end: drop PDFs, watch the pile rank itself, tune presets in the UI.
+Phase 4 — deployable: one Docker image serves the app + API, ready for Railway.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
@@ -18,7 +18,8 @@ Phase 3 — the web app is usable end to end: drop PDFs, watch the pile rank its
 | 1 | Preset-driven rubrics (weighted dimensions, normalized to 100) + tests | ✅ |
 | 2 | FastAPI + async screening jobs + Postgres-backed presets | ✅ |
 | 3 | React SPA (multi-file drop, live results table, preset editor) | ✅ |
-| 4 | Railway deploy | — |
+| 4 | Dockerfile + Railway deploy | ✅ |
+| 5 | Hardening: graceful error handling + API rate limiting | — |
 
 Design decisions (locked): stateless v1 (no auth, no PDF retention, no stored
 results), Postgres holds presets/config only, provider-agnostic LLM seam
@@ -51,7 +52,7 @@ For Gemini (hosted, recommended):
 
 ```
 LLM_PROVIDER=gemini
-DEFAULT_MODEL=gemini-2.5-flash
+DEFAULT_MODEL=gemini-2.5-flash-lite
 GEMINI_API_KEY=...
 ```
 
@@ -107,6 +108,36 @@ Postgres stores **presets only**. Screening jobs, results, and uploaded PDFs are
 never persisted: PDFs exist on disk only during parsing, and results live in
 process memory until restart (stateless v1 — auth and result persistence arrive
 together in a later phase).
+
+## Deploy (Railway)
+
+The [Dockerfile](Dockerfile) builds the SPA and serves everything from one
+uvicorn process, honoring Railway's `PORT`.
+
+1. Railway → New Project → **Deploy from GitHub repo** → pick `scorebot`
+   (it auto-detects the Dockerfile).
+2. Add a **PostgreSQL** service to the project. On the app service, add a
+   variable reference: `DATABASE_URL` → the Postgres service's `DATABASE_URL`
+   (`postgres://…` URLs are normalized automatically; presets seed on first boot).
+3. Set the remaining variables on the app service:
+   `LLM_PROVIDER=gemini`, `DEFAULT_MODEL=gemini-2.5-flash-lite`,
+   `GEMINI_API_KEY=…`, and optionally `GITHUB_TOKEN` (raises GitHub rate
+   limits for enrichment) and `LLM_MAX_CONCURRENCY` (default 2).
+4. Settings → Networking → **Generate Domain**. Done — `/api/health` should
+   return `{"status":"ok"}`.
+
+Local sanity check of the exact image Railway builds:
+
+```bash
+docker build -t scorebot .
+docker run -p 8000:8000 --env-file .env \
+  -e DATABASE_URL=postgres://scorebot:scorebot@host.docker.internal:5434/scorebot scorebot
+```
+
+Notes: screening results are in process memory by design, so each deploy/restart
+clears them (the UI says so). Keep the service at **1 replica** — jobs and
+results live in that process. No auth yet: treat the generated domain as a
+private URL and prefer keeping it unshared outside the team until phase 5+.
 
 ## Attribution
 
