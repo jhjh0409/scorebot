@@ -1,0 +1,11 @@
+.git
+.venv
+.env
+cache/
+resume_evaluations.csv
+frontend/node_modules
+frontend/dist
+docs/
+**/__pycache__
+.pytest_cache
+*.pdf
