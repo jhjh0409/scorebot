@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta charset="utf-8">
+  <title>scorebot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F6F6F3; --panel: #FFFFFF; --ink: #1C1C1A; --mut: #6E6D67; --faint: #9C9B93;
+      --line: #E4E3DC; --line2: #EFEEE8; --hover: #F7F6F2;
+      --accent: oklch(0.51 0.19 266); --accent-ink: #FFFFFF; --accent-soft: oklch(0.95 0.03 266);
+      --good: oklch(0.55 0.14 155); --mid: oklch(0.6 0.13 70); --low: oklch(0.55 0.18 28);
+      --good-soft: oklch(0.94 0.05 155); --mid-soft: oklch(0.95 0.05 80); --low-soft: oklch(0.94 0.04 28);
+      --tint-swe-bg: oklch(0.94 0.04 266); --tint-swe-fg: oklch(0.42 0.16 266);
+      --tint-bd-bg: oklch(0.94 0.05 155); --tint-bd-fg: oklch(0.4 0.11 155);
+      --tint-mkt-bg: oklch(0.95 0.05 65); --tint-mkt-fg: oklch(0.45 0.11 60);
+      --row-pad: 13px; --shadow: 0 1px 2px rgba(20,20,15,0.04), 0 8px 24px -12px rgba(20,20,15,0.12);
+      --drawer-shadow: -24px 0 60px -30px rgba(20,20,15,0.35);
+    }
+    :root[data-theme="dark"] {
+      --bg: #131315; --panel: #1B1B1E; --ink: #ECECE7; --mut: #A2A199; --faint: #6E6D67;
+      --line: #2A2A2E; --line2: #222226; --hover: #202024;
+      --accent: oklch(0.7 0.15 266); --accent-ink: #101014; --accent-soft: oklch(0.28 0.06 266);
+      --good: oklch(0.72 0.13 155); --mid: oklch(0.75 0.12 75); --low: oklch(0.68 0.16 28);
+      --good-soft: oklch(0.3 0.05 155); --mid-soft: oklch(0.3 0.05 80); --low-soft: oklch(0.3 0.05 28);
+      --tint-swe-bg: oklch(0.3 0.07 266); --tint-swe-fg: oklch(0.8 0.09 266);
+      --tint-bd-bg: oklch(0.3 0.06 155); --tint-bd-fg: oklch(0.8 0.09 155);
+      --tint-mkt-bg: oklch(0.31 0.05 65); --tint-mkt-fg: oklch(0.82 0.08 65);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+      --drawer-shadow: -24px 0 60px -30px rgba(0,0,0,0.7);
+    }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body { background: var(--bg); color: var(--ink); font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent); text-decoration: underline; }
+    input, textarea, button, select { font-family: inherit; color: inherit; }
+    input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    @keyframes sb-spin { to { transform: rotate(360deg); } }
+    @keyframes sb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    @keyframes sb-rowin { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    @keyframes sb-drawerin { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes sb-fadein { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes sb-pop { 0% { transform: scale(0.85); opacity: 0; } 60% { transform: scale(1.06); } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes sb-shimmer { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    ::placeholder { color: var(--faint); }
+  </style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; flex-direction: column;">
+
+  <!-- ============ Top bar ============ -->
+  <header style="display: flex; align-items: center; gap: 20px; padding: 0 24px; height: 54px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40;">
+    <div style="display: flex; align-items: center; gap: 9px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color: var(--accent); flex-shrink: 0;">
+        <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></line>
+        <circle cx="12" cy="2.4" r="1.4" fill="currentColor"></circle>
+        <rect x="4" y="5.5" width="16" height="13" rx="4" stroke="currentColor" stroke-width="1.8"></rect>
+        <circle cx="9" cy="11" r="1.5" fill="currentColor"></circle>
+        <circle cx="15" cy="11" r="1.5" fill="currentColor"></circle>
+        <path d="M9 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        <line x1="4" y1="21.5" x2="20" y2="21.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="2.5 3"></line>
+      </svg>
+      <span style="font-weight: 700; font-size: 16px; letter-spacing: -0.02em;">scorebot</span>
+    </div>
+
+    <nav style="display: flex; gap: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 2px;">
+      <button onClick="{{ goScreen }}" style="border: none; cursor: pointer; padding: 5px 14px; font-size: 13px; font-weight: 600; border-radius: 6px; background: {{ screenTabBg }}; color: {{ screenTabFg }}; box-shadow: {{ screenTabShadow }};">Screen</button>
+      <button onClick="{{ goPresets }}" style="border: none; cursor: pointer; padding: 5px 14px; font-size: 13px; font-weight: 600; border-radius: 6px; background: {{ presetsTabBg }}; color: {{ presetsTabFg }}; box-shadow: {{ presetsTabShadow }};">Presets</button>
+    </nav>
+
+    <div style="flex: 1;"></div>
+
+    <button onClick="{{ toggleTheme }}" title="Toggle dark mode" style="border: 1px solid var(--line); background: var(--panel); cursor: pointer; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--mut);" style-hover="background: var(--hover); color: var(--ink);">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      </sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+      </sc-if>
+    </button>
+  </header>
+
+  <!-- ============ SCREEN VIEW ============ -->
+  <sc-if value="{{ isScreen }}" hint-placeholder-val="{{ true }}">
+    <main data-screen-label="Screen view" style="flex: 1; width: 100%; max-width: 1180px; margin: 0 auto; padding: 24px 24px 40px; box-sizing: border-box;">
+
+      <!-- Controls: preset picker + drop zone -->
+      <div style="display: grid; grid-template-columns: minmax(320px, 5fr) minmax(300px, 4fr); gap: 14px; align-items: stretch;">
+
+        <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow);">
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px;">1 &middot; Pick a role</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <sc-for list="{{ presetChips }}" as="c" hint-placeholder-count="3">
+              <button onClick="{{ c.select }}" style="cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 999px; border: 1px solid {{ c.bd }}; background: {{ c.bg }}; color: {{ c.fg }};">{{ c.name }}</button>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line2); align-items: center;">
+            <sc-for list="{{ selectedPeek }}" as="d" hint-placeholder-count="4">
+              <span style="font-size: 11.5px; color: var(--mut); background: var(--bg); border: 1px solid var(--line2); border-radius: 6px; padding: 3px 8px; display: inline-flex; gap: 5px; align-items: baseline;">{{ d.name }} <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--faint);">{{ d.pct }}%</span></span>
+            </sc-for>
+            <sc-if value="{{ selectedHasGithub }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size: 11.5px; color: var(--tint-swe-fg); background: var(--tint-swe-bg); border-radius: 6px; padding: 3px 8px; font-weight: 600;">+ GitHub analysis</span>
+            </sc-if>
+          </div>
+        </section>
+
+        <section onDrop="{{ onDrop }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onClick="{{ browse }}" style="cursor: pointer; border: 1.5px dashed {{ dzBorder }}; background: {{ dzBg }}; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; transition: background 0.15s, border-color 0.15s;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" style="color: var(--faint);">
+            <path d="M12 15V4M12 4l-3.5 3.5M12 4l3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          </svg>
+          <div style="font-size: 14px; font-weight: 600;">2 &middot; Drop resume PDFs <span style="color: var(--mut); font-weight: 400;">or click to browse</span></div>
+          <div style="font-size: 12px; color: var(--faint);">PDF only &middot; 10&thinsp;MB max &middot; scored against <strong style="color: var(--mut); font-weight: 600;">{{ activePresetName }}</strong></div>
+          <button onClick="{{ addSamples }}" style="margin-top: 4px; cursor: pointer; border: none; background: none; font-size: 12px; font-weight: 600; color: var(--accent); padding: 2px 4px;" style-hover="text-decoration: underline;">or try 7 sample resumes</button>
+          <input type="file" multiple accept="application/pdf" onChange="{{ onFiles }}" ref="{{ fileRef }}" style="display: none;">
+        </section>
+      </div>
+
+      <!-- Rejections -->
+      <sc-if value="{{ hasRejections }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 12px; border: 1px solid var(--low); background: var(--low-soft); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; animation: sb-fadein 0.2s ease;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+            <sc-for list="{{ rejections }}" as="r" hint-placeholder-count="1">
+              <div style="font-size: 13px; color: var(--low);"><strong style="font-weight: 600;">{{ r.filename }}</strong> was not added &mdash; {{ r.reason }}</div>
+            </sc-for>
+          </div>
+          <button onClick="{{ dismissRejections }}" style="border: none; background: none; cursor: pointer; color: var(--low); font-size: 15px; line-height: 1; padding: 2px;">&times;</button>
+        </div>
+      </sc-if>
+
+      <!-- Results -->
+      <div style="display: flex; align-items: baseline; gap: 14px; margin: 26px 0 10px;">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">Screenings</h2>
+        <span style="font-size: 12.5px; color: var(--faint); font-family: 'JetBrains Mono', monospace;">{{ countLabel }}</span>
+        <sc-if value="{{ hasRows }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ toggleSort }}" style="cursor: pointer; font-size: 12px; font-weight: 600; border: 1px solid {{ sortBd }}; background: {{ sortBg }}; color: {{ sortFg }}; border-radius: 999px; padding: 4px 12px; display: inline-flex; align-items: center; gap: 5px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 4v16M6 20l-3-3M6 20l3-3M13 6h8M13 12h6M13 18h4"></path></svg>
+            Sort by score
+          </button>
+        </sc-if>
+        <div style="flex: 1;"></div>
+        <span style="font-size: 12px; color: var(--faint);">Results last until the server restarts &mdash; copy what you need.</span>
+      </div>
+
+      <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;">
+
+        <!-- Empty state -->
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ true }}">
+          <div style="padding: 72px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style="color: var(--faint); opacity: 0.85;">
+              <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></line>
+              <circle cx="12" cy="2.2" r="1.1" fill="currentColor"></circle>
+              <rect x="4" y="5.5" width="16" height="13" rx="4" stroke="currentColor" stroke-width="1.4"></rect>
+              <circle cx="9" cy="11" r="1.3" fill="currentColor"></circle>
+              <circle cx="15" cy="11" r="1.3" fill="currentColor"></circle>
+              <path d="M8.5 15h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+              <line x1="5" y1="21.5" x2="19" y2="21.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="2 3"></line>
+            </svg>
+            <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Drop resumes, pick a role, get a ranked pile.</div>
+            <div style="font-size: 13.5px; color: var(--mut); max-width: 420px; line-height: 1.5;">Each resume is scored 0&ndash;100 against the role&rsquo;s rubric, with cited evidence per dimension. It&rsquo;s a first pass &mdash; a human still reads every resume.</div>
+            <button onClick="{{ addSamples }}" style="margin-top: 6px; cursor: pointer; border: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 13.5px; font-weight: 600; padding: 9px 18px;" style-hover="opacity: 0.9;">Try it with sample resumes</button>
+          </div>
+        </sc-if>
+
+        <!-- Table -->
+        <sc-if value="{{ hasRows }}" hint-placeholder-val="{{ false }}">
+          <div style="display: grid; grid-template-columns: minmax(180px, 1.4fr) 130px 170px 92px minmax(220px, 2fr); gap: 12px; padding: 9px 18px; border-bottom: 1px solid var(--line); font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);">
+            <div>Candidate</div><div>Preset</div><div>Status</div><div style="text-align: right;">Score</div><div>Verdict</div>
+          </div>
+          <div>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+              <div onClick="{{ r.open }}" style="display: grid; grid-template-columns: minmax(180px, 1.4fr) 130px 170px 92px minmax(220px, 2fr); gap: 12px; padding: var(--row-pad) 18px; border-bottom: 1px solid var(--line2); align-items: center; cursor: {{ r.cursor }}; background: {{ r.rowBg }}; animation: sb-rowin 0.25s ease;" style-hover="background: var(--hover);">
+                <div style="min-width: 0;">
+                  <div style="font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.name }}</div>
+                  <div style="font-size: 11px; color: var(--faint); font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.filename }}</div>
+                </div>
+                <div><span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ r.chipBg }}; color: {{ r.chipFg }}; white-space: nowrap;">{{ r.presetShort }}</span></div>
+                <div>
+                  <sc-if value="{{ r.isActive }}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: sb-spin 0.8s linear infinite; flex-shrink: 0;"></span>
+                      <span style="display: flex; flex-direction: column; gap: 3px;">
+                        <span style="font-size: 12px; color: var(--mut); font-family: 'JetBrains Mono', monospace;">{{ r.stageLabel }}</span>
+                        <span style="width: 68px; height: 3px; border-radius: 2px; background: var(--line2); overflow: hidden; display: block;"><span style="display: block; height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.6s ease; width: {{ r.pct }}%;"></span></span>
+                      </span>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ r.isDone }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12px; color: var(--good); font-weight: 600; display: inline-flex; align-items: center; gap: 5px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 5L20 7"></path></svg>done</span>
+                  </sc-if>
+                  <sc-if value="{{ r.isFailed }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12px; color: var(--low); font-weight: 600; display: inline-flex; align-items: center; gap: 5px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>failed</span>
+                  </sc-if>
+                </div>
+                <div style="text-align: right;">
+                  <sc-if value="{{ r.isDone }}" hint-placeholder-val="{{ false }}">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; animation: sb-pop 0.35s ease;">
+                      <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ r.bandColor }};"></span>
+                      <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700;">{{ r.score }}</span>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ r.isActive }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--faint); animation: sb-shimmer 1.4s ease infinite;">&middot;&middot;&middot;</span>
+                  </sc-if>
+                  <sc-if value="{{ r.isFailed }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--faint);">&mdash;</span>
+                  </sc-if>
+                </div>
+                <div style="min-width: 0;">
+                  <sc-if value="{{ r.isDone }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12.5px; color: var(--mut); line-height: 1.4; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.verdict }}</span>
+                  </sc-if>
+                  <sc-if value="{{ r.isFailed }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12.5px; color: var(--low); line-height: 1.4; display: block;">{{ r.error }}</span>
+                  </sc-if>
+                  <sc-if value="{{ r.isActive }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12.5px; color: var(--faint);">&nbsp;</span>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ mixedPresets }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 8px 18px; font-size: 11.5px; color: var(--faint); border-top: 1px solid var(--line2); display: flex; align-items: center; gap: 6px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v0.5"></path></svg>
+              This session mixes presets &mdash; scores are only comparable within the same preset.
+            </div>
+          </sc-if>
+        </sc-if>
+      </section>
+    </main>
+  </sc-if>
+
+  <!-- ============ PRESETS VIEW ============ -->
+  <sc-if value="{{ isPresets }}" hint-placeholder-val="{{ false }}">
+    <main data-screen-label="Presets view" style="flex: 1; width: 100%; max-width: 860px; margin: 0 auto; padding: 24px 24px 48px; box-sizing: border-box;">
+
+      <sc-if value="{{ notEditing }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">Role presets</h2>
+          <span style="font-size: 12.5px; color: var(--faint);">The rubric each resume is scored against &mdash; the role description and guidance are read by the AI.</span>
+          <div style="flex: 1;"></div>
+          <button onClick="{{ newPreset }}" style="cursor: pointer; border: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 600; padding: 8px 14px;" style-hover="opacity: 0.9;">New preset</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <sc-for list="{{ presetCards }}" as="p" hint-placeholder-count="3">
+            <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow);">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em;">{{ p.name }}</span>
+                <span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ p.chipBg }}; color: {{ p.chipFg }};">{{ p.dimCount }} dimensions</span>
+                <sc-if value="{{ p.github }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent);">GitHub analysis on</span>
+                </sc-if>
+                <span style="font-size: 11px; color: var(--faint); font-family: 'JetBrains Mono', monospace;">rubric {{ p.version }}</span>
+                <div style="flex: 1;"></div>
+                <sc-if value="{{ p.confirming }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size: 12.5px; color: var(--low); font-weight: 600;">Delete &ldquo;{{ p.name }}&rdquo;? Past scores keep their snapshot.</span>
+                  <button onClick="{{ p.confirmDelete }}" style="cursor: pointer; border: none; border-radius: 7px; background: var(--low); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 12px;">Delete</button>
+                  <button onClick="{{ p.cancelDelete }}" style="cursor: pointer; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-size: 12px; font-weight: 600; padding: 6px 12px; color: var(--mut);">Cancel</button>
+                </sc-if>
+                <sc-if value="{{ p.notConfirming }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ p.edit }}" style="cursor: pointer; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-size: 12px; font-weight: 600; padding: 6px 14px;" style-hover="background: var(--hover);">Edit</button>
+                  <button onClick="{{ p.askDelete }}" style="cursor: pointer; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-size: 12px; font-weight: 600; padding: 6px 12px; color: var(--mut);" style-hover="color: var(--low); border-color: var(--low);">Delete</button>
+                </sc-if>
+              </div>
+              <p style="margin: 9px 0 0; font-size: 13px; color: var(--mut); line-height: 1.5; max-width: 640px;">{{ p.desc }}</p>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px;">
+                <sc-for list="{{ p.dims }}" as="d" hint-placeholder-count="4">
+                  <span style="font-size: 11.5px; color: var(--mut); background: var(--bg); border: 1px solid var(--line2); border-radius: 6px; padding: 3px 8px;">{{ d.name }} <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--faint);">{{ d.pct }}%</span></span>
+                </sc-for>
+              </div>
+            </section>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- Editor -->
+      <sc-if value="{{ isEditing }}" hint-placeholder-val="{{ false }}">
+        <div style="animation: sb-fadein 0.2s ease;">
+          <button onClick="{{ ed.cancel }}" style="cursor: pointer; border: none; background: none; color: var(--mut); font-size: 13px; font-weight: 600; padding: 0; margin-bottom: 14px; display: inline-flex; align-items: center; gap: 6px;" style-hover="color: var(--ink);">&larr; All presets</button>
+
+          <h2 style="margin: 0 0 4px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">{{ ed.title }}</h2>
+          <sc-if value="{{ ed.showEditWarning }}" hint-placeholder-val="{{ false }}">
+            <p style="margin: 0 0 16px; font-size: 12.5px; color: var(--mut);">Changes apply to future screenings only &mdash; past results keep the rubric they were scored with.</p>
+          </sc-if>
+          <sc-if value="{{ ed.isNew }}" hint-placeholder-val="{{ false }}">
+            <p style="margin: 0 0 16px; font-size: 12.5px; color: var(--mut);">The role description and each dimension&rsquo;s guidance are read by the AI &mdash; write them like you&rsquo;d brief a new screener.</p>
+          </sc-if>
+
+          <sc-if value="{{ ed.hasError }}" hint-placeholder-val="{{ false }}">
+            <div style="border: 1px solid var(--low); background: var(--low-soft); color: var(--low); border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 14px;">{{ ed.error }}</div>
+          </sc-if>
+
+          <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px;">
+            <label style="display: flex; flex-direction: column; gap: 5px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--mut);">Preset name</span>
+              <input value="{{ ed.name }}" onChange="{{ ed.onName }}" placeholder="e.g. Founding Software Engineer" style="border: 1px solid {{ ed.nameBd }}; border-radius: 8px; background: var(--bg); padding: 9px 12px; font-size: 14px; box-sizing: border-box;">
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 5px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--mut);">Role description <span style="font-weight: 400; color: var(--faint);">&mdash; read by the AI</span></span>
+              <textarea value="{{ ed.desc }}" onChange="{{ ed.onDesc }}" rows="3" placeholder="2&ndash;4 sentences on what this role does and what you value." style="border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 9px 12px; font-size: 13.5px; line-height: 1.5; resize: vertical; box-sizing: border-box;"></textarea>
+            </label>
+          </section>
+
+          <div style="display: flex; align-items: baseline; gap: 12px; margin: 20px 0 10px;">
+            <h3 style="margin: 0; font-size: 14px; font-weight: 700;">Dimensions</h3>
+            <span style="font-size: 12px; color: var(--faint);">Weights can be any positive numbers &mdash; they&rsquo;re normalized to the live % shown.</span>
+            <div style="flex: 1;"></div>
+            <span style="font-size: 12px; color: {{ ed.sumColor }}; font-family: 'JetBrains Mono', monospace;">weights total {{ ed.weightSum }}</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <sc-for list="{{ ed.dims }}" as="d" hint-placeholder-count="3">
+              <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow);">
+                <div style="display: grid; grid-template-columns: 1fr 110px 130px auto; gap: 10px; align-items: end;">
+                  <label style="display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+                    <span style="font-size: 11px; font-weight: 700; color: var(--faint);">DIMENSION {{ d.num }}</span>
+                    <input value="{{ d.name }}" onChange="{{ d.onName }}" placeholder="Display name" style="border: 1px solid {{ d.nameBd }}; border-radius: 8px; background: var(--bg); padding: 8px 11px; font-size: 13.5px; font-weight: 600; box-sizing: border-box; min-width: 0;">
+                  </label>
+                  <label style="display: flex; flex-direction: column; gap: 5px;">
+                    <span style="font-size: 11px; font-weight: 700; color: var(--faint);">WEIGHT</span>
+                    <input type="number" min="0" value="{{ d.weight }}" onChange="{{ d.onWeight }}" style="border: 1px solid {{ d.weightBd }}; border-radius: 8px; background: var(--bg); padding: 8px 11px; font-size: 13.5px; font-family: 'JetBrains Mono', monospace; box-sizing: border-box; width: 100%;">
+                  </label>
+                  <div style="font-size: 12.5px; color: var(--accent); font-weight: 700; font-family: 'JetBrains Mono', monospace; padding-bottom: 9px;">= {{ d.pct }}% of score</div>
+                  <div style="display: flex; gap: 4px; padding-bottom: 4px;">
+                    <button onClick="{{ d.moveUp }}" title="Move up" style="cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; width: 26px; height: 26px; color: var(--mut); font-size: 12px;" style-hover="background: var(--hover);">&uarr;</button>
+                    <button onClick="{{ d.moveDown }}" title="Move down" style="cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; width: 26px; height: 26px; color: var(--mut); font-size: 12px;" style-hover="background: var(--hover);">&darr;</button>
+                    <button onClick="{{ d.remove }}" title="Remove dimension" style="cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; width: 26px; height: 26px; color: var(--mut); font-size: 13px;" style-hover="color: var(--low); border-color: var(--low);">&times;</button>
+                  </div>
+                </div>
+                <label style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                  <span style="font-size: 11px; font-weight: 700; color: var(--faint);">GUIDANCE <span style="font-weight: 400;">&mdash; what does good evidence look like? Read by the AI.</span></span>
+                  <textarea value="{{ d.guidance }}" onChange="{{ d.onGuidance }}" rows="2" placeholder="Describe the evidence that should score highly here&hellip;" style="border: 1px solid {{ d.guidanceBd }}; border-radius: 8px; background: var(--bg); padding: 8px 11px; font-size: 13px; line-height: 1.5; resize: vertical; box-sizing: border-box;"></textarea>
+                </label>
+              </section>
+            </sc-for>
+          </div>
+
+          <button onClick="{{ ed.addDim }}" style="margin-top: 10px; cursor: pointer; width: 100%; border: 1.5px dashed var(--line); background: none; border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 600; color: var(--mut);" style-hover="border-color: var(--accent); color: var(--accent);">+ Add dimension</button>
+
+          <h3 style="margin: 20px 0 10px; font-size: 14px; font-weight: 700;">Enrichments</h3>
+          <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px;">
+            <div style="flex: 1;">
+              <div style="font-size: 13.5px; font-weight: 600;">GitHub analysis</div>
+              <div style="font-size: 12.5px; color: var(--mut); margin-top: 2px;">Fetches and classifies the candidate&rsquo;s public repos. Adds ~30s per resume; only meaningful for engineering roles.</div>
+            </div>
+            <button onClick="{{ ed.toggleGithub }}" role="switch" style="cursor: pointer; border: none; width: 40px; height: 23px; border-radius: 999px; background: {{ ed.ghBg }}; position: relative; transition: background 0.15s; flex-shrink: 0;">
+              <span style="position: absolute; top: 2.5px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: left 0.15s; left: {{ ed.ghKnob }}px;"></span>
+            </button>
+          </section>
+
+          <div style="display: flex; gap: 10px; margin-top: 22px;">
+            <button onClick="{{ ed.save }}" style="cursor: pointer; border: none; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 13.5px; font-weight: 600; padding: 10px 20px;" style-hover="opacity: 0.9;">{{ ed.saveLabel }}</button>
+            <button onClick="{{ ed.cancel }}" style="cursor: pointer; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 13.5px; font-weight: 600; padding: 10px 20px; color: var(--mut);" style-hover="background: var(--hover);">Cancel</button>
+          </div>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <!-- ============ Footer ============ -->
+  <footer style="border-top: 1px solid var(--line); padding: 12px 24px; display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--faint);">
+    <span>Scoring ignores name, gender, school, GPA, and location by design.</span>
+    <span>&middot;</span>
+    <span>scorebot is a first-pass triage aid &mdash; a human reads every resume.</span>
+  </footer>
+
+  <!-- ============ Detail drawer ============ -->
+  <sc-if value="{{ hasSelected }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position: fixed; inset: 0; background: rgba(15,15,12,0.32); z-index: 60; animation: sb-fadein 0.2s ease;"></div>
+    <aside data-screen-label="Detail drawer" style="position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 92vw); background: var(--panel); border-left: 1px solid var(--line); z-index: 61; box-shadow: var(--drawer-shadow); animation: sb-drawerin 0.22s ease; display: flex; flex-direction: column;">
+
+      <div style="display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 16px; border-bottom: 1px solid var(--line);">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.01em;">{{ sel.name }}</div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap;">
+            <span style="font-size: 11.5px; color: var(--faint); font-family: 'JetBrains Mono', monospace;">{{ sel.filename }}</span>
+            <span style="font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: {{ sel.chipBg }}; color: {{ sel.chipFg }};">{{ sel.presetName }}</span>
+          </div>
+        </div>
+        <button onClick="{{ closeDrawer }}" style="cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; width: 30px; height: 30px; color: var(--mut); font-size: 16px; line-height: 1; flex-shrink: 0;" style-hover="background: var(--hover); color: var(--ink);">&times;</button>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 20px 24px 28px;">
+
+        <sc-if value="{{ sel.isFailed }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 1px solid var(--low); background: var(--low-soft); border-radius: 12px; padding: 16px 18px;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--low); margin-bottom: 6px;">Screening failed</div>
+            <div style="font-size: 13.5px; color: var(--ink); line-height: 1.55;">{{ sel.error }}</div>
+            <div style="font-size: 12.5px; color: var(--mut); margin-top: 10px;">Other rows in the pile were not affected. The file was not stored.</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ sel.isDone }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; gap: 18px; align-items: center; background: var(--bg); border: 1px solid var(--line2); border-radius: 14px; padding: 18px 20px;">
+            <div style="position: relative; width: 76px; height: 76px; flex-shrink: 0;">
+              <svg width="76" height="76" viewBox="0 0 76 76">
+                <circle cx="38" cy="38" r="32" fill="none" stroke="var(--line)" stroke-width="6"></circle>
+                <circle cx="38" cy="38" r="32" fill="none" stroke="{{ sel.bandColor }}" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ sel.dash }} 201" transform="rotate(-90 38 38)"></circle>
+              </svg>
+              <div style="position: absolute; inset: 0; display: grid; place-items: center; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700;">{{ sel.score }}</div>
+            </div>
+            <div style="min-width: 0;">
+              <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: {{ sel.bandColor }}; margin-bottom: 4px;">{{ sel.band }} &middot; {{ sel.score }}/100</div>
+              <div style="font-size: 15px; font-weight: 600; line-height: 1.45; letter-spacing: -0.005em;">{{ sel.verdict }}</div>
+            </div>
+          </div>
+          <p style="margin: 10px 2px 0; font-size: 11.5px; color: var(--faint);">A triage aid, not a ranking of people &mdash; small score gaps aren&rsquo;t meaningful. The evidence below is the substance.</p>
+
+          <h3 style="margin: 24px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);">Dimension breakdown</h3>
+          <div style="display: flex; flex-direction: column;">
+            <sc-for list="{{ sel.dims }}" as="d" hint-placeholder-count="4">
+              <div style="padding: 14px 0; border-bottom: 1px solid var(--line2);">
+                <div style="display: flex; align-items: baseline; gap: 10px;">
+                  <span style="font-size: 13.5px; font-weight: 700;">{{ d.name }}</span>
+                  <span style="font-size: 11px; color: var(--faint); font-family: 'JetBrains Mono', monospace;">{{ d.pct }}% weight</span>
+                  <div style="flex: 1;"></div>
+                  <span style="font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: {{ d.barColor }};">{{ d.score }}<span style="color: var(--faint); font-weight: 400;">/10</span></span>
+                </div>
+                <div style="height: 4px; border-radius: 2px; background: var(--line2); margin: 8px 0 10px; overflow: hidden;">
+                  <div style="height: 100%; border-radius: 2px; background: {{ d.barColor }}; width: {{ d.barW }}%;"></div>
+                </div>
+                <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--mut); border-left: 2px solid var(--line); padding-left: 12px;">{{ d.evidence }}</p>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px;">
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--good);">Key strengths</h3>
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <sc-for list="{{ sel.strengths }}" as="s" hint-placeholder-count="2">
+                  <div style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="color: var(--good); font-weight: 700; flex-shrink: 0;">+</span><span>{{ s.text }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid);">Concerns</h3>
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <sc-for list="{{ sel.concerns }}" as="c" hint-placeholder-count="2">
+                  <div style="display: flex; gap: 8px; font-size: 13px; line-height: 1.5;"><span style="color: var(--mid); font-weight: 700; flex-shrink: 0;">!</span><span>{{ c.text }}</span></div>
+                </sc-for>
+                <sc-if value="{{ sel.noConcerns }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 13px; color: var(--faint);">None flagged.</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line2); font-size: 11.5px; color: var(--faint); display: flex; align-items: center; gap: 6px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5l3 2"></path><circle cx="12" cy="12" r="9"></circle></svg>
+            {{ sel.rubricNote }}
+          </div>
+        </sc-if>
+      </div>
+    </aside>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#4B57D2&quot;, &quot;#0E8A6C&quot;, &quot;#B4552D&quot;, &quot;#6D28D9&quot;], &quot;section&quot;: &quot;Theme&quot; },
+  &quot;density&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;comfortable&quot;, &quot;options&quot;: [&quot;comfortable&quot;, &quot;compact&quot;], &quot;tsType&quot;: &quot;'comfortable' | 'compact'&quot;, &quot;section&quot;: &quot;Theme&quot; },
+  &quot;simSpeed&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;demo&quot;, &quot;options&quot;: [&quot;demo&quot;, &quot;realistic&quot;], &quot;tsType&quot;: &quot;'demo' | 'realistic'&quot;, &quot;section&quot;: &quot;Simulation&quot; }
+}">
+class Component extends DCLogic {
+  state = {
+    view: 'screen',
+    theme: 'light',
+    presets: [],
+    activePreset: 'founding-swe',
+    screenings: [],
+    sortByScore: false,
+    selectedId: null,
+    rejections: [],
+    dragOver: false,
+    editing: null,       // { isNew, originalId, data, errors, banner }
+    confirmDeleteId: null,
+    dataLoaded: false,
+  };
+
+  fileRef = React.createRef();
+  _seq = 0;
+  _poolIdx = {};
+  _timers = [];
+
+  componentDidMount() {
+    import('./scorebot-data.js').then((m) => {
+      this.data = m;
+      this.setState({ presets: JSON.parse(JSON.stringify(m.PRESETS)), dataLoaded: true });
+    });
+    this.applyProps();
+  }
+
+  componentDidUpdate() { this.applyProps(); }
+  componentWillUnmount() { this._timers.forEach(clearTimeout); }
+
+  applyProps() {
+    const root = document.documentElement;
+    if (!root.getAttribute('data-theme')) root.setAttribute('data-theme', this.state.theme);
+    if (this.props.accent) root.style.setProperty('--accent', this.props.accent);
+    root.style.setProperty('--row-pad', (this.props.density ?? 'comfortable') === 'compact' ? '7px' : '13px');
+  }
+
+  after(ms, fn) { this._timers.push(setTimeout(fn, ms)); }
+
+  patchJob(id, patch) {
+    this.setState((s) => ({ screenings: s.screenings.map((j) => (j.id === id ? { ...j, ...patch } : j)) }));
+  }
+
+  prettyName(filename) {
+    return filename.replace(/\.pdf$/i, '').replace(/resume|_cv|cv_|\bfinal\b/gi, ' ')
+      .replace(/[_\-.]+/g, ' ').trim().split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || filename;
+  }
+
+  spawn(specs) {
+    if (!this.data) return;
+    const jobs = specs.map((sp) => ({
+      id: 'job' + (++this._seq),
+      filename: sp.name,
+      presetId: sp.presetId || this.state.activePreset,
+      status: 'queued', error: null, result: null,
+      fail: !!sp.fail, derived: !!sp.derived,
+    }));
+    this.setState((s) => ({ screenings: [...s.screenings, ...jobs] }));
+    jobs.forEach((j, i) => this.runJob(j, i));
+  }
+
+  runJob(job, stagger) {
+    const preset = this.state.presets.find((p) => p.id === job.presetId);
+    const k = (this.props.simSpeed ?? 'demo') === 'realistic' ? 7 : 1;
+    const stages = ['parsing'].concat(preset && preset.enrichments.github ? ['enriching'] : [], ['scoring']);
+    let t = 500 + stagger * 850 + Math.random() * 500;
+    stages.forEach((st) => {
+      this.after(t, () => this.patchJob(job.id, { status: st }));
+      t += k * (2000 + Math.random() * 2000);
+    });
+    this.after(t, () => {
+      if (job.fail) {
+        this.patchJob(job.id, { status: 'failed', error: this.data.FAIL_ERROR });
+      } else {
+        const pool = this.data.CANDIDATES[job.presetId] || this.data.CANDIDATES['founding-swe'];
+        this._poolIdx[job.presetId] = ((this._poolIdx[job.presetId] ?? -1) + 1) % pool.length;
+        const base = pool[this._poolIdx[job.presetId]];
+        const result = JSON.parse(JSON.stringify(base));
+        result.preset_name = preset ? preset.name : job.presetId;
+        if (job.derived) result.candidate_name = this.prettyName(job.filename);
+        this.patchJob(job.id, { status: 'done', result });
+      }
+    });
+  }
+
+  addFileList(files) {
+    const rejections = [];
+    const specs = [];
+    for (const f of files) {
+      if (!/\.pdf$/i.test(f.name)) { rejections.push({ filename: f.name, reason: 'only PDF files are accepted.' }); continue; }
+      if (f.size && f.size > 10 * 1024 * 1024) { rejections.push({ filename: f.name, reason: 'it\u2019s larger than the 10 MB limit.' }); continue; }
+      specs.push({ name: f.name, derived: true });
+    }
+    this.setState({ rejections, dragOver: false });
+    this.spawn(specs);
+  }
+
+  chipColors(presetId) {
+    const map = {
+      'founding-swe': { bg: 'var(--tint-swe-bg)', fg: 'var(--tint-swe-fg)' },
+      'bd-intern': { bg: 'var(--tint-bd-bg)', fg: 'var(--tint-bd-fg)' },
+      'mkt-intern': { bg: 'var(--tint-mkt-bg)', fg: 'var(--tint-mkt-fg)' },
+    };
+    return map[presetId] || { bg: 'var(--line2)', fg: 'var(--mut)' };
+  }
+
+  band(score) {
+    if (score >= 70) return { label: 'strong signal', color: 'var(--good)' };
+    if (score >= 50) return { label: 'mixed signal', color: 'var(--mid)' };
+    return { label: 'weak match', color: 'var(--low)' };
+  }
+
+  dimColor(score) {
+    if (score >= 7) return 'var(--good)';
+    if (score >= 5) return 'var(--mid)';
+    return 'var(--low)';
+  }
+
+  shortName(name) {
+    return name.replace('Founding Software Engineer', 'Founding SWE')
+      .replace('Business Development Intern', 'BD Intern')
+      .replace('Marketing Intern', 'Marketing Intern');
+  }
+
+  stageInfo(job, preset) {
+    const stages = ['queued', 'parsing'].concat(preset && preset.enrichments.github ? ['enriching'] : [], ['scoring']);
+    const labels = { queued: 'queued', parsing: 'parsing resume\u2026', enriching: 'analyzing GitHub\u2026', scoring: 'scoring\u2026' };
+    const idx = stages.indexOf(job.status);
+    return { label: labels[job.status] || job.status, pct: Math.round(((idx + 1) / (stages.length + 1)) * 100) };
+  }
+
+  // ---------- editor helpers ----------
+  startEdit(preset) {
+    this.setState({
+      editing: { isNew: false, originalId: preset.id, data: JSON.parse(JSON.stringify(preset)), errors: {}, banner: null },
+      confirmDeleteId: null,
+    });
+  }
+
+  startNew() {
+    this.setState({
+      editing: {
+        isNew: true, originalId: null,
+        data: { id: null, name: '', role_description: '', enrichments: { github: false }, rubricVersion: 'v1',
+          dimensions: [{ key: '', name: '', weight: 25, guidance: '' }] },
+        errors: {}, banner: null,
+      },
+      confirmDeleteId: null,
+    });
+  }
+
+  patchDraft(patch) { this.setState((s) => ({ editing: { ...s.editing, data: { ...s.editing.data, ...patch } } })); }
+
+  patchDim(i, patch) {
+    this.setState((s) => {
+      const dims = s.editing.data.dimensions.map((d, j) => (j === i ? { ...d, ...patch } : d));
+      return { editing: { ...s.editing, data: { ...s.editing.data, dimensions: dims } } };
+    });
+  }
+
+  moveDim(i, dir) {
+    this.setState((s) => {
+      const dims = [...s.editing.data.dimensions];
+      const j = i + dir;
+      if (j < 0 || j >= dims.length) return null;
+      [dims[i], dims[j]] = [dims[j], dims[i]];
+      return { editing: { ...s.editing, data: { ...s.editing.data, dimensions: dims } } };
+    });
+  }
+
+  saveDraft() {
+    const ed = this.state.editing;
+    const d = ed.data;
+    const errors = { dims: {} };
+    let banner = null;
+    if (!d.name.trim()) { errors.name = true; banner = 'Fix the highlighted fields.'; }
+    const slugs = {};
+    d.dimensions.forEach((dim, i) => {
+      const e = {};
+      if (!dim.name.trim()) e.name = true;
+      if (!dim.guidance.trim()) e.guidance = true;
+      if (!(Number(dim.weight) > 0)) e.weight = true;
+      const slug = dim.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      if (slug && slugs[slug]) { e.name = true; banner = 'Two dimensions have the same name \u2014 ids must be unique.'; }
+      slugs[slug] = true;
+      if (Object.keys(e).length) { errors.dims[i] = e; banner = banner || 'Fix the highlighted fields \u2014 guidance can\u2019t be empty and weights must be positive.'; }
+    });
+    if (d.dimensions.length === 0) banner = 'A preset needs at least one dimension.';
+    if (banner) { this.setState({ editing: { ...ed, errors, banner } }); return; }
+
+    const cleaned = { ...d, dimensions: d.dimensions.map((dim) => ({ ...dim, weight: Number(dim.weight), key: dim.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_') })) };
+    this.setState((s) => {
+      let presets;
+      if (ed.isNew) {
+        cleaned.id = cleaned.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        presets = [...s.presets, cleaned];
+      } else {
+        cleaned.rubricVersion = 'v' + (parseInt(String(d.rubricVersion).replace('v', ''), 10) + 1);
+        presets = s.presets.map((p) => (p.id === ed.originalId ? cleaned : p));
+      }
+      return { presets, editing: null };
+    });
+  }
+
+  // ---------- render ----------
+  renderVals() {
+    const s = this.state;
+    const active = s.presets.find((p) => p.id === s.activePreset) || s.presets[0];
+
+    // rows
+    let list = [...s.screenings];
+    if (s.sortByScore) {
+      const rank = (j) => (j.status === 'done' ? 0 : j.status === 'failed' ? 2 : 1);
+      list.sort((a, b) => rank(a) - rank(b) || ((b.result ? b.result.overall_score : 0) - (a.result ? a.result.overall_score : 0)));
+    }
+    const rows = list.map((j) => {
+      const preset = s.presets.find((p) => p.id === j.presetId);
+      const chip = this.chipColors(j.presetId);
+      const done = j.status === 'done';
+      const failed = j.status === 'failed';
+      const activeJob = !done && !failed;
+      const st = this.stageInfo(j, preset);
+      const bd = done ? this.band(j.result.overall_score) : null;
+      return {
+        id: j.id,
+        name: done ? j.result.candidate_name : this.prettyName(j.filename),
+        filename: j.filename,
+        presetShort: this.shortName(preset ? preset.name : j.presetId),
+        chipBg: chip.bg, chipFg: chip.fg,
+        isDone: done, isFailed: failed, isActive: activeJob,
+        stageLabel: st.label, pct: st.pct,
+        score: done ? Math.round(j.result.overall_score) : null,
+        bandColor: bd ? bd.color : 'var(--faint)',
+        verdict: done ? j.result.verdict : '',
+        error: j.error || '',
+        cursor: activeJob ? 'default' : 'pointer',
+        rowBg: s.selectedId === j.id ? 'var(--hover)' : 'transparent',
+        open: () => { if (!activeJob) this.setState({ selectedId: j.id }); },
+      };
+    });
+
+    const doneCount = s.screenings.filter((j) => j.status === 'done').length;
+    const activeCount = s.screenings.filter((j) => j.status !== 'done' && j.status !== 'failed').length;
+    let countLabel = s.screenings.length + ' screening' + (s.screenings.length === 1 ? '' : 's');
+    if (activeCount) countLabel += ' \u00b7 ' + activeCount + ' running';
+    else if (doneCount) countLabel += ' \u00b7 ' + doneCount + ' done';
+
+    // drawer
+    const selJob = s.screenings.find((j) => j.id === s.selectedId);
+    let sel = null;
+    if (selJob) {
+      const preset = s.presets.find((p) => p.id === selJob.presetId);
+      const chip = this.chipColors(selJob.presetId);
+      const r = selJob.result;
+      const bd = r ? this.band(r.overall_score) : null;
+      sel = {
+        name: r ? r.candidate_name : this.prettyName(selJob.filename),
+        filename: selJob.filename,
+        presetName: preset ? preset.name : selJob.presetId,
+        chipBg: chip.bg, chipFg: chip.fg,
+        isDone: selJob.status === 'done', isFailed: selJob.status === 'failed',
+        error: selJob.error || '',
+        score: r ? Math.round(r.overall_score) : 0,
+        dash: r ? Math.round((r.overall_score / 100) * 201) : 0,
+        band: bd ? bd.label : '', bandColor: bd ? bd.color : 'var(--faint)',
+        verdict: r ? r.verdict : '',
+        dims: r ? r.dimensions.map((d) => ({
+          name: d.name, pct: Math.round(d.weight * 100), score: d.score,
+          barW: d.score * 10, barColor: this.dimColor(d.score), evidence: d.evidence,
+        })) : [],
+        strengths: r ? r.key_strengths.map((t) => ({ text: t })) : [],
+        concerns: r ? r.concerns.map((t) => ({ text: t })) : [],
+        noConcerns: r ? r.concerns.length === 0 : false,
+        rubricNote: 'Scored with rubric ' + (preset ? preset.rubricVersion : 'v1') + ' \u2014 the full rubric snapshot is saved with this result.',
+      };
+    }
+
+    // preset cards
+    const presetCards = s.presets.map((p) => {
+      const chip = this.chipColors(p.id);
+      const total = p.dimensions.reduce((a, d) => a + Number(d.weight), 0) || 1;
+      return {
+        name: p.name, desc: p.role_description,
+        dimCount: p.dimensions.length,
+        github: p.enrichments.github,
+        version: p.rubricVersion || 'v1',
+        chipBg: chip.bg, chipFg: chip.fg,
+        dims: p.dimensions.map((d) => ({ name: d.name, pct: Math.round((Number(d.weight) / total) * 100) })),
+        confirming: s.confirmDeleteId === p.id,
+        notConfirming: s.confirmDeleteId !== p.id,
+        edit: () => this.startEdit(p),
+        askDelete: () => this.setState({ confirmDeleteId: p.id }),
+        cancelDelete: () => this.setState({ confirmDeleteId: null }),
+        confirmDelete: () => this.setState((st) => {
+          const presets = st.presets.filter((x) => x.id !== p.id);
+          return { presets, confirmDeleteId: null, activePreset: st.activePreset === p.id ? (presets[0] ? presets[0].id : null) : st.activePreset };
+        }),
+      };
+    });
+
+    // editor vm
+    const edn = s.editing;
+    let ed = null;
+    if (edn) {
+      const dd = edn.data;
+      const total = dd.dimensions.reduce((a, d) => a + (Number(d.weight) > 0 ? Number(d.weight) : 0), 0);
+      const errBd = (bad) => (bad ? 'var(--low)' : 'var(--line)');
+      ed = {
+        title: edn.isNew ? 'New preset' : 'Edit \u201c' + dd.name + '\u201d',
+        isNew: edn.isNew, showEditWarning: !edn.isNew,
+        hasError: !!edn.banner, error: edn.banner || '',
+        name: dd.name, nameBd: errBd(edn.errors.name),
+        onName: (e) => this.patchDraft({ name: e.target.value }),
+        desc: dd.role_description,
+        onDesc: (e) => this.patchDraft({ role_description: e.target.value }),
+        weightSum: total || 0,
+        sumColor: total === 100 ? 'var(--good)' : 'var(--faint)',
+        dims: dd.dimensions.map((d, i) => {
+          const de = (edn.errors.dims && edn.errors.dims[i]) || {};
+          const w = Number(d.weight);
+          return {
+            num: i + 1,
+            name: d.name, nameBd: errBd(de.name),
+            weight: d.weight, weightBd: errBd(de.weight),
+            guidance: d.guidance, guidanceBd: errBd(de.guidance),
+            pct: total > 0 && w > 0 ? Math.round((w / total) * 100) : 0,
+            onName: (e) => this.patchDim(i, { name: e.target.value }),
+            onWeight: (e) => this.patchDim(i, { weight: e.target.value }),
+            onGuidance: (e) => this.patchDim(i, { guidance: e.target.value }),
+            moveUp: () => this.moveDim(i, -1),
+            moveDown: () => this.moveDim(i, 1),
+            remove: () => this.setState((st) => ({ editing: { ...st.editing, data: { ...st.editing.data, dimensions: st.editing.data.dimensions.filter((_, j) => j !== i) } } })),
+          };
+        }),
+        addDim: () => this.setState((st) => ({ editing: { ...st.editing, data: { ...st.editing.data, dimensions: [...st.editing.data.dimensions, { key: '', name: '', weight: 10, guidance: '' }] } } })),
+        github: dd.enrichments.github,
+        ghBg: dd.enrichments.github ? 'var(--accent)' : 'var(--line)',
+        ghKnob: dd.enrichments.github ? 19.5 : 2.5,
+        toggleGithub: () => this.patchDraft({ enrichments: { ...dd.enrichments, github: !dd.enrichments.github } }),
+        save: () => this.saveDraft(),
+        saveLabel: edn.isNew ? 'Create preset' : 'Save changes',
+        cancel: () => this.setState({ editing: null }),
+      };
+    }
+
+    const tabOn = { bg: 'var(--panel)', fg: 'var(--ink)', sh: '0 1px 2px rgba(0,0,0,0.08)' };
+    const tabOff = { bg: 'transparent', fg: 'var(--mut)', sh: 'none' };
+    const st_ = s.view === 'screen' ? tabOn : tabOff;
+    const pt = s.view === 'presets' ? tabOn : tabOff;
+    const presetIds = new Set(s.screenings.map((j) => j.presetId));
+
+    return {
+      // nav
+      isScreen: s.view === 'screen', isPresets: s.view === 'presets',
+      goScreen: () => this.setState({ view: 'screen' }),
+      goPresets: () => this.setState({ view: 'presets', editing: null, confirmDeleteId: null }),
+      screenTabBg: st_.bg, screenTabFg: st_.fg, screenTabShadow: st_.sh,
+      presetsTabBg: pt.bg, presetsTabFg: pt.fg, presetsTabShadow: pt.sh,
+      isDark: s.theme === 'dark', isLight: s.theme === 'light',
+      toggleTheme: () => {
+        const t = s.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        this.setState({ theme: t });
+      },
+
+      // picker
+      presetChips: s.presets.map((p) => ({
+        id: p.id, name: p.name,
+        bd: p.id === s.activePreset ? 'var(--accent)' : 'var(--line)',
+        bg: p.id === s.activePreset ? 'var(--accent-soft)' : 'var(--panel)',
+        fg: p.id === s.activePreset ? 'var(--accent)' : 'var(--mut)',
+        select: () => this.setState({ activePreset: p.id }),
+      })),
+      selectedPeek: active ? (() => {
+        const total = active.dimensions.reduce((a, d) => a + Number(d.weight), 0) || 1;
+        return active.dimensions.map((d) => ({ name: d.name, pct: Math.round((Number(d.weight) / total) * 100) }));
+      })() : [],
+      selectedHasGithub: !!(active && active.enrichments.github),
+      activePresetName: active ? active.name : '\u2026',
+
+      // dropzone
+      dzBorder: s.dragOver ? 'var(--accent)' : 'var(--line)',
+      dzBg: s.dragOver ? 'var(--accent-soft)' : 'var(--panel)',
+      onDrop: (e) => { e.preventDefault(); this.addFileList([...e.dataTransfer.files].map((f) => ({ name: f.name, size: f.size }))); },
+      onDragOver: (e) => { e.preventDefault(); if (!s.dragOver) this.setState({ dragOver: true }); },
+      onDragLeave: () => this.setState({ dragOver: false }),
+      browse: () => { if (this.fileRef.current) this.fileRef.current.click(); },
+      onFiles: (e) => { this.addFileList([...e.target.files].map((f) => ({ name: f.name, size: f.size }))); e.target.value = ''; },
+      fileRef: this.fileRef,
+      addSamples: (e) => { if (e) e.stopPropagation(); if (this.data) this.spawn(this.data.SAMPLE_BATCH); },
+
+      // rejections
+      hasRejections: s.rejections.length > 0,
+      rejections: s.rejections,
+      dismissRejections: () => this.setState({ rejections: [] }),
+
+      // table
+      rows, countLabel,
+      hasRows: s.screenings.length > 0,
+      isEmpty: s.screenings.length === 0 && s.dataLoaded,
+      mixedPresets: presetIds.size > 1,
+      sortByScore: s.sortByScore,
+      toggleSort: () => this.setState({ sortByScore: !s.sortByScore }),
+      sortBd: s.sortByScore ? 'var(--accent)' : 'var(--line)',
+      sortBg: s.sortByScore ? 'var(--accent-soft)' : 'var(--panel)',
+      sortFg: s.sortByScore ? 'var(--accent)' : 'var(--mut)',
+
+      // drawer
+      hasSelected: !!sel, sel: sel || {},
+      closeDrawer: () => this.setState({ selectedId: null }),
+
+      // presets view
+      notEditing: !edn, isEditing: !!edn,
+      presetCards,
+      newPreset: () => this.startNew(),
+      ed: ed || {},
+    };
+  }
+}
+
+</script>
+</body>
+</html>
