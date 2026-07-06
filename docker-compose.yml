@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: scorebot-postgres
+    environment:
+      POSTGRES_USER: scorebot
+      POSTGRES_PASSWORD: scorebot
+      POSTGRES_DB: scorebot
+    ports:
+      - "5434:5432"  # 5432/5433 are used by other local projects
+    volumes:
+      - scorebot_pgdata:/var/lib/postgresql/data
+
+volumes:
+  scorebot_pgdata:
