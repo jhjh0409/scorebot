@@ -10,13 +10,13 @@ LLM evaluation loop form the core of `backend/pipeline/`. See [LICENSE](LICENSE)
 
 ## Status
 
-Phase 1 — scoring is preset-driven; the CLI screens a resume against any role preset.
+Phase 2 — the API is live: async screening jobs plus Postgres-backed, editable presets.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Repo bootstrap, package layout, CLI parity | ✅ |
 | 1 | Preset-driven rubrics (weighted dimensions, normalized to 100) + tests | ✅ |
-| 2 | FastAPI + async screening jobs + Postgres-backed presets | — |
+| 2 | FastAPI + async screening jobs + Postgres-backed presets | ✅ |
 | 3 | React SPA (multi-file drop, live results table, preset editor) | — |
 | 4 | Railway deploy | — |
 
@@ -77,6 +77,24 @@ GitHub steps are cached in `cache/`, so re-scoring with a different preset only
 spends one LLM call.
 
 Tests: `.venv/bin/python -m pytest backend/tests`
+
+## API
+
+```bash
+docker compose up -d postgres          # presets DB on localhost:5434
+.venv/bin/uvicorn backend.api.main:app --reload
+```
+
+- `POST /api/screenings` (multipart `file` PDF + `preset_id` form field) → `202` with a job id
+- `GET /api/screenings/{id}` — poll status: `queued → parsing → enriching → scoring → done|failed`, result included when done
+- `GET /api/screenings` — all jobs, newest first
+- `GET|POST /api/presets`, `GET|PUT|DELETE /api/presets/{id}` — preset CRUD (delete is a soft delete)
+- `GET /api/health`
+
+Postgres stores **presets only**. Screening jobs, results, and uploaded PDFs are
+never persisted: PDFs exist on disk only during parsing, and results live in
+process memory until restart (stateless v1 — auth and result persistence arrive
+together in a later phase).
 
 ## Attribution
 
