@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import * as api from './api'
 import type { Preset, ScreeningJob } from './types'
 import { ScreenView } from './ScreenView'
@@ -28,8 +28,6 @@ export default function App() {
   const [presets, setPresets] = useState<Preset[]>([])
   const [jobs, setJobs] = useState<ScreeningJob[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
-  const jobsRef = useRef(jobs)
-  jobsRef.current = jobs
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -51,33 +49,37 @@ export default function App() {
     api.listScreenings().then(setJobs).catch(() => {})
   }, [refreshPresets])
 
-  // Poll active jobs while any exist.
+  // Poll while any job is active: ONE list request per tick regardless of how
+  // many jobs are running (per-job GETs would trip the API rate limit).
   useEffect(() => {
     const active = jobs.some((j) => j.status !== 'done' && j.status !== 'failed')
     if (!active) return
     const t = setInterval(async () => {
-      const current = jobsRef.current
-      const pending = current.filter((j) => j.status !== 'done' && j.status !== 'failed')
-      const updates = await Promise.all(
-        pending.map((j) =>
-          api.getScreening(j.id).catch((e) => {
-            // A 404 on a job we know means the server restarted and its
-            // in-memory results are gone — say so instead of spinning forever.
-            if (e instanceof api.ApiError && e.status === 404) {
-              return {
-                ...j,
-                status: 'failed',
-                error: 'The server restarted and cleared this in-progress screening. Re-submit the resume.',
-              } as ScreeningJob
-            }
-            return null // transient network blip — keep polling
-          }),
-        ),
-      )
-      const byId = new Map(updates.filter(Boolean).map((j) => [j!.id, j!]))
-      if (byId.size) {
-        setJobs((prev) => prev.map((j) => byId.get(j.id) ?? j))
+      let listed: ScreeningJob[]
+      try {
+        listed = await api.listScreenings()
+      } catch {
+        return // transient network blip — keep polling
       }
+      const byId = new Map(listed.map((j) => [j.id, j]))
+      setJobs((prev) =>
+        prev.map((j) => {
+          const update = byId.get(j.id)
+          if (update) return update
+          if (j.status !== 'done' && j.status !== 'failed') {
+            // A known in-flight job missing from the server means it
+            // restarted and its in-memory state is gone — say so instead
+            // of spinning forever.
+            return {
+              ...j,
+              status: 'failed',
+              error:
+                'The server restarted and cleared this in-progress screening. Re-submit the resume.',
+            } as ScreeningJob
+          }
+          return j
+        }),
+      )
     }, POLL_MS)
     return () => clearInterval(t)
   }, [jobs])
