@@ -15,7 +15,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Session
 from ..pipeline.presets import Preset
 from .db import Base, PresetRow, make_engine, make_session_factory, seed_presets_if_empty
 from .jobs import InMemoryScreeningStore, JobStatus, ScreeningJob, ScreeningRunner
+from .ratelimit import RateLimits, SlidingWindowLimiter, client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +53,21 @@ class ScreeningJobOut(BaseModel):
         )
 
 
-def create_app(database_url: str = None) -> FastAPI:
+def _rate_limited(retry_after: int, what: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        headers={"Retry-After": str(retry_after)},
+        content={"detail": f"{what} Try again in about {retry_after}s."},
+    )
+
+
+def create_app(database_url: str = None, rate_limits: RateLimits = None) -> FastAPI:
     engine = make_engine(database_url)
     session_factory = make_session_factory(engine)
+    limits = rate_limits or RateLimits()
+    api_limiter = SlidingWindowLimiter(limits.api_per_minute, 60)
+    screening_ip_limiter = SlidingWindowLimiter(limits.screenings_per_hour_per_ip, 3600)
+    screening_global_limiter = SlidingWindowLimiter(limits.screenings_per_hour_global, 3600)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -68,6 +82,23 @@ def create_app(database_url: str = None) -> FastAPI:
     app = FastAPI(title="scorebot", lifespan=lifespan)
     app.state.store = InMemoryScreeningStore()
     app.state.runner = ScreeningRunner(app.state.store)
+
+    @app.middleware("http")
+    async def api_rate_limit(request: Request, call_next):
+        if request.url.path.startswith("/api/"):
+            allowed, retry_after = api_limiter.allow(client_ip(request))
+            if not allowed:
+                return _rate_limited(retry_after, "Too many requests.")
+        return await call_next(request)
+
+    @app.exception_handler(Exception)
+    async def unhandled_error(request: Request, exc: Exception):
+        # Log the traceback, hand the client something calm and non-leaky.
+        logger.exception(f"Unhandled error on {request.method} {request.url.path}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Something went wrong on the server. It was logged — try again."},
+        )
 
     def get_db():
         with session_factory() as session:
@@ -137,10 +168,21 @@ def create_app(database_url: str = None) -> FastAPI:
 
     @app.post("/api/screenings", response_model=ScreeningJobOut, status_code=202)
     async def create_screening(
+        request: Request,
         file: UploadFile = File(...),
         preset_id: str = Form(...),
         db: Session = Depends(get_db),
     ):
+        # Screenings spend LLM quota — they get their own, tighter budgets.
+        allowed, retry_after = screening_ip_limiter.allow(client_ip(request))
+        if not allowed:
+            return _rate_limited(retry_after, "You've submitted a lot of resumes this hour.")
+        allowed, retry_after = screening_global_limiter.allow("global")
+        if not allowed:
+            return _rate_limited(
+                retry_after, "The team's hourly screening budget is used up."
+            )
+
         if not (file.filename or "").lower().endswith(".pdf"):
             raise HTTPException(400, "Only PDF resumes are supported")
         pdf_bytes = await file.read()
