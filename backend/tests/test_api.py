@@ -72,13 +72,45 @@ class TestDatabaseUrlNormalization:
 
 
 class TestPresetCrud:
-    def test_seeded_with_three_presets(self, client):
+    def test_seeded_with_all_starter_presets(self, client):
         presets = client.get("/api/presets").json()
         assert sorted(p["id"] for p in presets) == [
             "bd-intern",
+            "data-analyst",
             "marketing-intern",
+            "product-designer",
             "software-engineer",
         ]
+
+    def test_seeding_adds_missing_without_touching_edits_or_deletes(self):
+        # simulate a pre-existing DB: seed, edit one preset, soft-delete
+        # another, drop a third entirely — re-seeding must restore only the
+        # dropped one and leave the edit and the delete alone
+        from backend.api.db import (
+            Base,
+            PresetRow,
+            make_engine,
+            make_session_factory,
+            seed_missing_presets,
+        )
+
+        engine = make_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        session_factory = make_session_factory(engine)
+
+        with session_factory() as s:
+            assert seed_missing_presets(s) == 5
+
+            s.get(PresetRow, "bd-intern").name = "Team-Renamed Role"
+            s.get(PresetRow, "marketing-intern").active = False  # deliberate delete
+            s.delete(s.get(PresetRow, "data-analyst"))  # missing entirely
+            s.commit()
+
+        with session_factory() as s:
+            assert seed_missing_presets(s) == 1  # only data-analyst comes back
+            assert s.get(PresetRow, "bd-intern").name == "Team-Renamed Role"
+            assert s.get(PresetRow, "marketing-intern").active is False
+            assert s.get(PresetRow, "data-analyst") is not None
 
     def test_get_single_preset(self, client):
         preset = client.get("/api/presets/software-engineer").json()

@@ -64,15 +64,21 @@ def make_session_factory(engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-def seed_presets_if_empty(session: Session) -> int:
-    """Idempotent seed of the three starter presets. Returns rows inserted."""
+def seed_missing_presets(session: Session) -> int:
+    """Insert any seed preset whose id isn't in the table yet, so new roles
+    reach existing databases. Rows the team edited or soft-deleted are never
+    touched — a deliberate delete stays deleted. Returns rows inserted."""
     from ..pipeline.presets import SEED_PRESETS
 
-    if session.query(PresetRow).count() > 0:
-        return 0
+    existing = {row_id for (row_id,) in session.query(PresetRow.id).all()}
+    inserted = 0
     for preset in SEED_PRESETS:
+        if preset.id in existing:
+            continue
         session.add(
             PresetRow(id=preset.id, name=preset.name, data=preset.model_dump())
         )
-    session.commit()
-    return len(SEED_PRESETS)
+        inserted += 1
+    if inserted:
+        session.commit()
+    return inserted

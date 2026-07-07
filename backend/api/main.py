@@ -22,7 +22,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from ..pipeline.presets import Preset
-from .db import Base, PresetRow, make_engine, make_session_factory, seed_presets_if_empty
+from .db import Base, PresetRow, make_engine, make_session_factory, seed_missing_presets
 from .jobs import InMemoryScreeningStore, JobStatus, ScreeningJob, ScreeningRunner
 from .ratelimit import RateLimits, SlidingWindowLimiter, client_ip
 
@@ -73,7 +73,7 @@ def create_app(database_url: str = None, rate_limits: RateLimits = None) -> Fast
     async def lifespan(app: FastAPI):
         Base.metadata.create_all(engine)
         with session_factory() as session:
-            inserted = seed_presets_if_empty(session)
+            inserted = seed_missing_presets(session)
             if inserted:
                 logger.info(f"Seeded {inserted} starter presets")
         yield
