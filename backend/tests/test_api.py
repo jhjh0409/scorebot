@@ -209,7 +209,9 @@ class TestScreenings:
         parse.side_effect = RuntimeError("boom")
         job = wait_for_done(client, self._post_screening(client).json()["id"])
         assert job["status"] == "failed"
-        assert "boom" in job["error"]
+        # raw exception text is classified into a friendly message, not leaked
+        assert "boom" not in job["error"]
+        assert "failed" in job["error"].lower()
 
     def test_unknown_preset_404(self, client):
         assert self._post_screening(client, "nope").status_code == 404

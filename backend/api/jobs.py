@@ -20,9 +20,35 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 from ..pipeline import screening
+from ..pipeline.llm_utils import _is_rate_limit_error
 from ..pipeline.presets import Preset
 
 logger = logging.getLogger(__name__)
+
+
+def classify_error(exc: Exception) -> str:
+    """Turn a pipeline exception into a message a non-engineer can act on.
+    The raw error is logged; it never reaches the UI."""
+    if _is_rate_limit_error(exc):
+        return (
+            "The AI provider's rate limit was hit — the free-tier quota may be "
+            "exhausted for now. Wait a bit (limits reset over time, daily quota "
+            "resets at midnight Pacific) and try again."
+        )
+    text = f"{type(exc).__name__} {exc}".lower()
+    if "failed validation" in text or "json" in text:
+        return (
+            "The AI returned an unusable response even after a retry. "
+            "Re-submitting the resume usually fixes this."
+        )
+    if any(m in text for m in ("timeout", "timed out", "connection", "unreachable", "getaddrinfo")):
+        return (
+            "A network problem interrupted the screening. "
+            "Check connectivity and re-submit the resume."
+        )
+    if "api key" in text or "unauthorized" in text or "401" in text:
+        return "The AI provider rejected the server's API key — check the deployment's credentials."
+    return "The screening failed unexpectedly. It was logged; re-submitting the resume may work."
 
 SCREENING_WORKERS = int(os.getenv("SCREENING_WORKERS", "2"))
 MAX_JOBS_KEPT = int(os.getenv("MAX_JOBS_KEPT", "200"))
@@ -127,14 +153,20 @@ class ScreeningRunner:
             github_data = {}
             if preset.enrichments.github:
                 self.store.update(job_id, status=JobStatus.ENRICHING)
-                github_data = screening.enrich(resume, preset)
+                try:
+                    github_data = screening.enrich(resume, preset)
+                except Exception:
+                    # Enrichment is a bonus signal — degrade to scoring the
+                    # resume alone rather than failing the whole screening.
+                    logger.exception(f"Enrichment failed for job {job_id}; scoring without it")
+                    github_data = {}
 
             self.store.update(job_id, status=JobStatus.SCORING)
             result = screening.screen_parsed(resume, preset, github_data)
             self.store.update(job_id, status=JobStatus.DONE, result=result)
         except Exception as exc:
             logger.exception(f"Screening job {job_id} failed")
-            self.store.update(job_id, status=JobStatus.FAILED, error=str(exc))
+            self.store.update(job_id, status=JobStatus.FAILED, error=classify_error(exc))
 
     def shutdown(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
