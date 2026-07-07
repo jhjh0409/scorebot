@@ -55,7 +55,9 @@ def make_engine(database_url: str = None):
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
-    return create_engine(url)
+    # pre-ping: serverless Postgres (Neon) drops idle connections when it
+    # scales to zero; without this the first request after idle 500s
+    return create_engine(url, pool_pre_ping=True)
 
 
 def make_session_factory(engine) -> sessionmaker[Session]:

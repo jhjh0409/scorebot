@@ -18,5 +18,7 @@ COPY backend/ ./backend/
 COPY --from=frontend /build/dist ./frontend/dist
 
 ENV PYTHONUNBUFFERED=1
+# no local caching on ephemeral container disk
+ENV DEVELOPMENT_MODE=false
 # Railway injects PORT; default for local runs
 CMD ["sh", "-c", "uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
