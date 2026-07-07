@@ -59,7 +59,20 @@ export default function App() {
       const current = jobsRef.current
       const pending = current.filter((j) => j.status !== 'done' && j.status !== 'failed')
       const updates = await Promise.all(
-        pending.map((j) => api.getScreening(j.id).catch(() => null)),
+        pending.map((j) =>
+          api.getScreening(j.id).catch((e) => {
+            // A 404 on a job we know means the server restarted and its
+            // in-memory results are gone — say so instead of spinning forever.
+            if (e instanceof api.ApiError && e.status === 404) {
+              return {
+                ...j,
+                status: 'failed',
+                error: 'The server restarted and cleared this in-progress screening. Re-submit the resume.',
+              } as ScreeningJob
+            }
+            return null // transient network blip — keep polling
+          }),
+        ),
       )
       const byId = new Map(updates.filter(Boolean).map((j) => [j!.id, j!]))
       if (byId.size) {

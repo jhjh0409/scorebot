@@ -1,5 +1,13 @@
 import type { Preset, ScreeningJob } from './types'
 
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function check(resp: Response): Promise<Response> {
   if (resp.ok) return resp
   let detail = `${resp.status} ${resp.statusText}`
@@ -11,7 +19,7 @@ async function check(resp: Response): Promise<Response> {
   } catch {
     /* non-JSON error body */
   }
-  throw new Error(detail)
+  throw new ApiError(detail, resp.status)
 }
 
 export async function listPresets(): Promise<Preset[]> {
