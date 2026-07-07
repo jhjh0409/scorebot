@@ -124,7 +124,7 @@ export function PresetsView({ presets, onChanged }: { presets: Preset[]; onChang
               <input
                 className={errors.name ? 'err' : ''}
                 value={draft.name}
-                placeholder="e.g. Founding Software Engineer"
+                placeholder="e.g. Software Engineer"
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
             </label>

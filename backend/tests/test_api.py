@@ -82,7 +82,7 @@ class TestPresetCrud:
 
     def test_get_single_preset(self, client):
         preset = client.get("/api/presets/software-engineer").json()
-        assert preset["name"] == "Founding Software Engineer"
+        assert preset["name"] == "Software Engineer"
         assert preset["enrichments"]["github"] is True
 
     def test_get_unknown_preset_404(self, client):

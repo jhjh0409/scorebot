@@ -52,7 +52,7 @@ class Preset(BaseModel):
 SEED_PRESETS: List[Preset] = [
     Preset(
         id="software-engineer",
-        name="Founding Software Engineer",
+        name="Software Engineer",
         role_description=(
             "An early engineer at a small, fast-moving startup. They will own "
             "features end-to-end across the stack with minimal supervision, so "

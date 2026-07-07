@@ -46,7 +46,7 @@ export function chipColors(presetId: string, presetIds: string[]): { bg: string;
 
 export function shortName(name: string): string {
   return name
-    .replace('Founding Software Engineer', 'Founding SWE')
+    .replace('Software Engineer', 'SWE')
     .replace('Business Development Intern', 'BD Intern')
     .replace('Software Engineer', 'SWE')
 }

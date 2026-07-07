@@ -71,7 +71,7 @@ describe('slugs', () => {
     expect(dimensionKey('  ')).toBe('')
   })
   it('makes backend-valid preset ids', () => {
-    expect(presetId('Founding Software Engineer')).toBe('founding-software-engineer')
+    expect(presetId('Software Engineer')).toBe('founding-software-engineer')
     expect(presetId('3D Artist')).toBe('p-3d-artist')
   })
 })

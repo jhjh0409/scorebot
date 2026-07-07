@@ -305,7 +305,7 @@
           <section style="background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px;">
             <label style="display: flex; flex-direction: column; gap: 5px;">
               <span style="font-size: 12px; font-weight: 700; color: var(--mut);">Preset name</span>
-              <input value="{{ ed.name }}" onChange="{{ ed.onName }}" placeholder="e.g. Founding Software Engineer" style="border: 1px solid {{ ed.nameBd }}; border-radius: 8px; background: var(--bg); padding: 9px 12px; font-size: 14px; box-sizing: border-box;">
+              <input value="{{ ed.name }}" onChange="{{ ed.onName }}" placeholder="e.g. Software Engineer" style="border: 1px solid {{ ed.nameBd }}; border-radius: 8px; background: var(--bg); padding: 9px 12px; font-size: 14px; box-sizing: border-box;">
             </label>
             <label style="display: flex; flex-direction: column; gap: 5px;">
               <span style="font-size: 12px; font-weight: 700; color: var(--mut);">Role description <span style="font-weight: 400; color: var(--faint);">&mdash; read by the AI</span></span>
@@ -596,7 +596,7 @@ class Component extends DCLogic {
   }
 
   shortName(name) {
-    return name.replace('Founding Software Engineer', 'Founding SWE')
+    return name.replace('Software Engineer', 'SWE')
       .replace('Business Development Intern', 'BD Intern')
       .replace('Marketing Intern', 'Marketing Intern');
   }

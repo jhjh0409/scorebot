@@ -3,8 +3,7 @@
 ## What it is
 
 scorebot is an internal resume-screening tool for a small startup. A team member
-drops one or more candidate resume PDFs in, picks a role preset (e.g. "Founding
-Software Engineer"), and the app scores each resume 0–100 against that role's
+drops one or more candidate resume PDFs in, picks a role preset (e.g. "Software Engineer"), and the app scores each resume 0–100 against that role's
 weighted rubric — with cited evidence per dimension, key strengths, concerns, and
 a one-line verdict. It is a **first-pass triage aid**: it orders the pile and
 surfaces talking points; a human still reads every resume. It must never feel
