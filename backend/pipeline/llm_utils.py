@@ -8,8 +8,19 @@ import random
 import threading
 import time
 from typing import Any, Dict, List, Optional
-from .models import ModelProvider, OllamaProvider, GeminiProvider
-from .prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from .models import (
+    AnthropicProvider,
+    GeminiProvider,
+    ModelProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
+from .prompt import (
+    ANTHROPIC_API_KEY,
+    GEMINI_API_KEY,
+    MODEL_PROVIDER_MAPPING,
+    OPENAI_API_KEY,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,26 +111,69 @@ def extract_json_from_response(response_text: str) -> str:
     return response_text
 
 
+_MODEL_PREFIX_RULES = (
+    ("gemini", ModelProvider.GEMINI),
+    ("claude", ModelProvider.ANTHROPIC),
+    ("gpt", ModelProvider.OPENAI),
+)
+
+
+def resolve_provider(model_name: str, provider_env: Optional[str] = None) -> ModelProvider:
+    """
+    Which provider serves this model?
+
+    Switching LLMs is meant to be a pure env change: set DEFAULT_MODEL and the
+    provider follows from the name (known names via MODEL_PROVIDER_MAPPING,
+    then gemini-*/claude-*/gpt-* prefixes). LLM_PROVIDER decides for model ids
+    the rules don't recognize (fine-tunes, proxies); Ollama is the final
+    fallback for local models.
+    """
+    env = provider_env if provider_env is not None else os.getenv("LLM_PROVIDER", "")
+    env = env.strip().lower()
+    env_provider: Optional[ModelProvider] = None
+    if env:
+        try:
+            env_provider = ModelProvider(env)
+        except ValueError:
+            valid = ", ".join(p.value for p in ModelProvider)
+            raise ValueError(f"Unknown LLM_PROVIDER '{env}'. Valid: {valid}") from None
+
+    if model_name in MODEL_PROVIDER_MAPPING:
+        return MODEL_PROVIDER_MAPPING[model_name]
+    for prefix, provider in _MODEL_PREFIX_RULES:
+        if model_name.lower().startswith(prefix):
+            return provider
+    return env_provider or ModelProvider.OLLAMA
+
+
+def _require_key(key: str, env_var: str, provider: ModelProvider) -> str:
+    if not key:
+        raise ValueError(
+            f"{env_var} is required to use the {provider.value} provider — "
+            f"set it in the environment (.env locally)."
+        )
+    return key
+
+
 def initialize_llm_provider(model_name: str) -> Any:
     """
-    Initialize the appropriate LLM provider based on the model name.
-
-    Args:
-        model_name: The name of the model to use
-
-    Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+    Initialize the LLM provider for a model, wrapped in the shared throttle.
+    Missing API keys fail loudly here rather than mid-pipeline.
     """
-    # Default to Ollama provider
-    provider = OllamaProvider()
-    # If using Gemini and API key is available, use Gemini provider
-    model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
-    if model_provider == ModelProvider.GEMINI:
-        if not GEMINI_API_KEY:
-            logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
-        else:
-            logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
-            provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    resolved = resolve_provider(model_name)
+    if resolved == ModelProvider.GEMINI:
+        provider = GeminiProvider(
+            api_key=_require_key(GEMINI_API_KEY, "GEMINI_API_KEY", resolved)
+        )
+    elif resolved == ModelProvider.ANTHROPIC:
+        provider = AnthropicProvider(
+            api_key=_require_key(ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY", resolved)
+        )
+    elif resolved == ModelProvider.OPENAI:
+        provider = OpenAIProvider(
+            api_key=_require_key(OPENAI_API_KEY, "OPENAI_API_KEY", resolved)
+        )
     else:
-        logger.info(f"🔄 Using Ollama provider with model {model_name}")
+        provider = OllamaProvider()
+    logger.info(f"🔄 Using {resolved.value} provider with model {model_name}")
     return ThrottledProvider(provider)

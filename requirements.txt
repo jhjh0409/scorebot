@@ -12,3 +12,5 @@ uvicorn[standard]==0.50.2
 SQLAlchemy==2.0.51
 psycopg[binary]==3.3.4
 python-multipart==0.0.32
+anthropic==0.116.0
+openai==2.44.0

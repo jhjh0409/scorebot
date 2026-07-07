@@ -41,7 +41,13 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # Anthropic models
+    "claude-sonnet-5": {"temperature": 0.1, "top_p": 0.9},
+    "claude-opus-4-8": {"temperature": 0.1, "top_p": 0.9},
+    "claude-haiku-4-5-20251001": {"temperature": 0.1, "top_p": 0.9},
 }
+# Unlisted models fall back to {"temperature": 0.1, "top_p": 0.9} at the call
+# sites — any current model id works without registering it here.
 
 # Model provider mapping
 # Maps model names to their provider
@@ -65,3 +71,5 @@ MODEL_PROVIDER_MAPPING = {
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

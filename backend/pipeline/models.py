@@ -8,6 +8,8 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -351,3 +353,80 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class AnthropicProvider:
+    """Anthropic (Claude) API provider implementation."""
+
+    def __init__(self, api_key: str):
+        import anthropic
+
+        self.client = anthropic.Anthropic(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to the Anthropic API."""
+        options = options or {}
+        # Anthropic takes the system prompt as a top-level param, not a message
+        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+        chat_messages = [m for m in messages if m["role"] != "system"]
+
+        params: Dict[str, Any] = {
+            "model": model,
+            "messages": chat_messages,
+            "max_tokens": 8192,
+        }
+        if system:
+            params["system"] = system
+        if "temperature" in options:
+            params["temperature"] = options["temperature"]
+        if "top_p" in options:
+            params["top_p"] = options["top_p"]
+        # The `format` json-schema kwarg (used by Ollama/Gemini) is ignored:
+        # the prompts already demand exact JSON and the response is validated.
+
+        response = self.client.messages.create(**params)
+        text = "".join(
+            block.text for block in response.content if block.type == "text"
+        )
+        return {"message": {"role": "assistant", "content": text}}
+
+
+class OpenAIProvider:
+    """OpenAI API provider implementation."""
+
+    def __init__(self, api_key: str):
+        import openai
+
+        self.client = openai.OpenAI(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to the OpenAI API."""
+        options = options or {}
+        params: Dict[str, Any] = {"model": model, "messages": messages}
+        if "temperature" in options:
+            params["temperature"] = options["temperature"]
+        if "top_p" in options:
+            params["top_p"] = options["top_p"]
+        if "format" in kwargs:
+            # our prompts always say "JSON", which json_object mode requires
+            params["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**params)
+        return {
+            "message": {
+                "role": "assistant",
+                "content": response.choices[0].message.content or "",
+            }
+        }
