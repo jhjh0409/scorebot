@@ -48,13 +48,21 @@ uv pip install -p .venv -r requirements.txt
 cp .env.example .env   # set LLM_PROVIDER / DEFAULT_MODEL / GEMINI_API_KEY
 ```
 
-For Gemini (hosted, recommended):
+### Choosing the LLM
 
-```
-LLM_PROVIDER=gemini
-DEFAULT_MODEL=gemini-2.5-flash-lite
-GEMINI_API_KEY=...
-```
+Switching models/providers is a pure env change — set `DEFAULT_MODEL` and the
+provider is inferred from the name:
+
+| `DEFAULT_MODEL` | Provider | Key needed |
+|---|---|---|
+| `gemini-2.5-flash-lite` (default) | Google Gemini | `GEMINI_API_KEY` |
+| `claude-sonnet-5` | Anthropic | `ANTHROPIC_API_KEY` |
+| `gpt-5.1-mini` | OpenAI | `OPENAI_API_KEY` |
+| `gemma3:4b` etc. | local Ollama | — |
+
+`LLM_PROVIDER` (`ollama`/`gemini`/`anthropic`/`openai`) is only consulted for
+model ids the prefix rules don't recognize (fine-tunes, gateways). A missing
+API key fails loudly at startup of a screening, not silently mid-pipeline.
 
 Free-tier Gemini keys are rate-limited (~10 req/min); one resume costs ~8 LLM
 calls, so expect roughly one resume per minute. Optionally set `GITHUB_TOKEN`
@@ -141,9 +149,10 @@ uvicorn process, honoring Railway's `PORT`.
    normalized automatically; presets seed on first boot). If your plan does
    include Railway Postgres, a `DATABASE_URL` variable reference works the same.
 3. Set the remaining variables on the app service:
-   `LLM_PROVIDER=gemini`, `DEFAULT_MODEL=gemini-2.5-flash-lite`,
-   `GEMINI_API_KEY=…`, and optionally `GITHUB_TOKEN` (raises GitHub rate
-   limits for enrichment) and `LLM_MAX_CONCURRENCY` (default 2).
+   `DEFAULT_MODEL=gemini-2.5-flash-lite` and `GEMINI_API_KEY=…` (or a
+   `claude-*`/`gpt-*` model with its key — see "Choosing the LLM"), and
+   optionally `GITHUB_TOKEN` (raises GitHub rate limits for enrichment) and
+   `LLM_MAX_CONCURRENCY` (default 2).
 4. Settings → Networking → **Generate Domain**. Done — `/api/health` should
    return `{"status":"ok"}`.
 
