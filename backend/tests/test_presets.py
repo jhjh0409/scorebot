@@ -72,10 +72,12 @@ class TestPresetValidation:
 
 
 class TestSeedPresets:
-    def test_three_seed_presets(self):
+    def test_five_seed_presets(self):
         assert sorted(PRESETS_BY_ID) == [
             "bd-intern",
+            "data-analyst",
             "marketing-intern",
+            "product-designer",
             "software-engineer",
         ]
 
@@ -83,10 +85,12 @@ class TestSeedPresets:
         for preset in SEED_PRESETS:
             assert sum(d.weight for d in preset.dimensions) == 100, preset.id
 
-    def test_only_engineer_preset_has_github_enrichment(self):
+    def test_github_enrichment_only_where_repos_are_evidence(self):
         assert get_preset("software-engineer").enrichments.github is True
+        assert get_preset("data-analyst").enrichments.github is True
         assert get_preset("bd-intern").enrichments.github is False
         assert get_preset("marketing-intern").enrichments.github is False
+        assert get_preset("product-designer").enrichments.github is False
 
     def test_unknown_preset_lists_valid_ids(self):
         with pytest.raises(KeyError, match="software-engineer"):

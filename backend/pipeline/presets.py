@@ -247,6 +247,159 @@ SEED_PRESETS: List[Preset] = [
             ),
         ],
     ),
+    Preset(
+        id="product-designer",
+        name="Product Designer",
+        role_description=(
+            "A designer who will own product design end-to-end at an "
+            "early-stage startup: research, flows, UI, and working with "
+            "engineers to ship. We care about shipped, verifiable design work "
+            "and product judgment over tool lists or visual polish alone."
+        ),
+        dimensions=[
+            RubricDimension(
+                key="portfolio",
+                name="Portfolio & Shipped Work",
+                weight=35,
+                guidance=(
+                    "A linked, viewable portfolio of real work: case studies "
+                    "that walk problem → exploration → shipped outcome, "
+                    "products in production, app-store or web links. Case "
+                    "studies with visible reasoning score high; dribbble-style "
+                    "static shots without context score mid; an unlinked or "
+                    "missing portfolio caps this dimension at 3 no matter "
+                    "what the resume claims."
+                ),
+            ),
+            RubricDimension(
+                key="product_thinking",
+                name="Product Thinking",
+                weight=25,
+                guidance=(
+                    "Evidence of solving user and business problems, not just "
+                    "drawing screens: user research, defining the problem, "
+                    "iterating on feedback, measurable outcomes (conversion, "
+                    "activation, retention, support-ticket drops). Design "
+                    "decisions justified by evidence score high; purely "
+                    "aesthetic descriptions score low."
+                ),
+            ),
+            RubricDimension(
+                key="craft",
+                name="Interaction & Visual Craft",
+                weight=20,
+                guidance=(
+                    "Quality of the work itself: interaction detail, "
+                    "information hierarchy, design-system thinking "
+                    "(components, tokens, consistency at scale), attention to "
+                    "edge states (empty, error, loading). Tool lists (Figma, "
+                    "etc.) count only when backed by work that shows mastery."
+                ),
+            ),
+            RubricDimension(
+                key="collaboration",
+                name="Collaboration with Engineering",
+                weight=10,
+                guidance=(
+                    "Evidence of shipping with engineers and PMs: handoff "
+                    "quality, design QA, working within technical "
+                    "constraints, contributing to or consuming a design "
+                    "system, writing specs or documentation. Solo-only work "
+                    "with no shipping partners scores low."
+                ),
+            ),
+            RubricDimension(
+                key="initiative",
+                name="Initiative",
+                weight=10,
+                guidance=(
+                    "Self-started design work: side projects, redesign "
+                    "explorations with reasoning, community involvement, "
+                    "writing or teaching about design. Shipped side projects "
+                    "score higher than concept work."
+                ),
+            ),
+        ],
+    ),
+    Preset(
+        id="data-analyst",
+        name="Data Analyst",
+        role_description=(
+            "An analyst who will own metrics, dashboards, and ad-hoc analysis "
+            "at an early-stage startup: pull the data, answer the question, "
+            "and change a decision. We care about end-to-end analyses with "
+            "real impact over certificates and tool lists."
+        ),
+        enrichments=EnrichmentToggles(github=True),
+        dimensions=[
+            RubricDimension(
+                key="analytical_projects",
+                name="Analytical Projects",
+                weight=30,
+                guidance=(
+                    "Real analyses carried end-to-end: a question, the data "
+                    "wrangling, the method, and a conclusion someone could "
+                    "act on — with verifiable artifacts (notebooks, "
+                    "dashboards, reports, repos). Original analyses of real "
+                    "or scraped data score high; tutorial-grade Kaggle "
+                    "walkthroughs (Titanic, iris) score 1-3; projects with "
+                    "no artifact to inspect score at most 4."
+                ),
+            ),
+            RubricDimension(
+                key="technical_toolkit",
+                name="Technical Toolkit",
+                weight=25,
+                guidance=(
+                    "SQL depth (joins, window functions, modeling), "
+                    "Python/R for analysis (pandas, notebooks), statistics "
+                    "fundamentals (distributions, significance, regression), "
+                    "and dashboarding (Tableau, Looker, Metabase, or "
+                    "similar) — evidenced through work and projects, not a "
+                    "skills list. Spreadsheet mastery counts as real "
+                    "evidence at the intern-to-junior level."
+                ),
+            ),
+            RubricDimension(
+                key="business_impact",
+                name="Business Impact",
+                weight=25,
+                guidance=(
+                    "Analyses that changed a decision: pricing, growth, "
+                    "retention, ops efficiency — ideally quantified "
+                    "('dashboard cut weekly reporting from 4h to 10min', "
+                    "'churn analysis led to onboarding change, +8% "
+                    "retention'). Working with stakeholders to scope the "
+                    "question scores here too. Analysis for its own sake "
+                    "with no decision attached scores low."
+                ),
+            ),
+            RubricDimension(
+                key="data_wrangling",
+                name="Data Wrangling Pragmatism",
+                weight=10,
+                guidance=(
+                    "Evidence of handling messy, real-world data: cleaning, "
+                    "joining across systems, scraping or APIs, building "
+                    "small pipelines, migrating spreadsheets into something "
+                    "queryable. Clean-dataset-only experience scores mid at "
+                    "best."
+                ),
+            ),
+            RubricDimension(
+                key="communication",
+                name="Communication of Findings",
+                weight=10,
+                guidance=(
+                    "Clear writing and visualization: reports or posts that "
+                    "explain method and findings honestly, including "
+                    "limitations and uncertainty. Charts that make the point "
+                    "at a glance score high; jargon-heavy or overclaiming "
+                    "writeups score low."
+                ),
+            ),
+        ],
+    ),
 ]
 
 PRESETS_BY_ID: Dict[str, Preset] = {p.id: p for p in SEED_PRESETS}
