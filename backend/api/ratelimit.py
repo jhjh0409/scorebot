@@ -46,13 +46,20 @@ class SlidingWindowLimiter:
                 return False, retry_after
             hits.append(now)
             self._hits[key] = hits
+            # keep the dict from accumulating one entry per IP ever seen
+            if len(self._hits) > 10_000:
+                for k in [k for k, v in self._hits.items() if not v or now - v[-1] >= self.window]:
+                    del self._hits[k]
             return True, 0
 
 
 def client_ip(request: Request) -> str:
-    """Caller identity: first X-Forwarded-For hop behind a proxy (Railway),
-    else the socket peer."""
+    """Caller identity behind one trusted proxy hop (Railway's edge).
+
+    The LAST X-Forwarded-For entry is the one the proxy itself appended; the
+    first is client-supplied and trivially forgeable, which would let a caller
+    dodge per-IP limits (the global limits backstop any residual spoofing)."""
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        return forwarded.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"

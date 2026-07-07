@@ -185,7 +185,9 @@ def create_app(database_url: str = None, rate_limits: RateLimits = None) -> Fast
 
         if not (file.filename or "").lower().endswith(".pdf"):
             raise HTTPException(400, "Only PDF resumes are supported")
-        pdf_bytes = await file.read()
+        # read one byte past the cap instead of the whole upload, so an
+        # oversized file is rejected without buffering it all in memory
+        pdf_bytes = await file.read(MAX_PDF_BYTES + 1)
         if len(pdf_bytes) > MAX_PDF_BYTES:
             raise HTTPException(413, "PDF larger than 10MB")
         if not pdf_bytes.startswith(b"%PDF"):

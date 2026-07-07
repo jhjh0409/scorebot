@@ -46,6 +46,29 @@ class TestSlidingWindowLimiter:
         assert limiter.allow("ip1")[0] is False
 
 
+class TestClientIp:
+    def test_last_forwarded_hop_wins(self):
+        from backend.api.ratelimit import client_ip
+
+        class Req:
+            headers = {"x-forwarded-for": "6.6.6.6, 203.0.113.7"}
+            client = None
+
+        # 6.6.6.6 is client-forgeable; 203.0.113.7 is what the proxy appended
+        assert client_ip(Req()) == "203.0.113.7"
+
+
+class TestUploadSizeCap:
+    def test_oversized_pdf_rejected_413(self, strict_client):
+        big = b"%PDF-1.4 " + b"x" * (10 * 1024 * 1024)
+        resp = strict_client.post(
+            "/api/screenings",
+            files={"file": ("big.pdf", io.BytesIO(big), "application/pdf")},
+            data={"preset_id": "bd-intern"},
+        )
+        assert resp.status_code == 413
+
+
 class TestClassifyError:
     def test_rate_limit_errors_mention_quota(self):
         msg = classify_error(Exception("429 You exceeded your current quota"))
