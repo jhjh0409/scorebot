@@ -10,7 +10,7 @@ LLM evaluation loop form the core of `backend/pipeline/`. See [LICENSE](LICENSE)
 
 ## Status
 
-Phase 4 — deployable: one Docker image serves the app + API, ready for Railway.
+Phase 5 — hardened: friendly failure messages everywhere, and rate limits guard the LLM quota.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
@@ -19,7 +19,7 @@ Phase 4 — deployable: one Docker image serves the app + API, ready for Railway
 | 2 | FastAPI + async screening jobs + Postgres-backed presets | ✅ |
 | 3 | React SPA (multi-file drop, live results table, preset editor) | ✅ |
 | 4 | Dockerfile + Railway deploy | ✅ |
-| 5 | Hardening: graceful error handling + API rate limiting | — |
+| 5 | Hardening: graceful error handling + API rate limiting | ✅ |
 
 Design decisions (locked): stateless v1 (no auth, no PDF retention, no stored
 results), Postgres holds presets/config only, provider-agnostic LLM seam
@@ -109,6 +109,24 @@ never persisted: PDFs exist on disk only during parsing, and results live in
 process memory until restart (stateless v1 — auth and result persistence arrive
 together in a later phase).
 
+### Rate limits & errors
+
+There is no auth yet, so in-process rate limits are what stop a leaked URL or a
+runaway script from burning the LLM quota (env-tunable):
+
+| Variable | Default | Guards |
+|----------|---------|--------|
+| `API_RATE_LIMIT_PER_MINUTE` | 120 | all `/api/*` requests, per IP |
+| `SCREENINGS_PER_HOUR_PER_IP` | 20 | resume submissions, per IP |
+| `SCREENINGS_PER_HOUR_GLOBAL` | 60 | resume submissions, whole deployment |
+
+Limited requests get `429` + `Retry-After`, which the UI shows as a friendly
+banner. Failed screenings carry a classified, human-readable message (provider
+quota exhausted / unusable AI response / network problem / bad credentials) —
+raw provider errors are logged server-side, never shown. GitHub enrichment
+failures degrade to scoring the resume alone instead of failing the screening,
+and if the server restarts mid-screening the UI says so instead of spinning.
+
 ## Deploy (Railway)
 
 The [Dockerfile](Dockerfile) builds the SPA and serves everything from one
@@ -116,9 +134,12 @@ uvicorn process, honoring Railway's `PORT`.
 
 1. Railway → New Project → **Deploy from GitHub repo** → pick `scorebot`
    (it auto-detects the Dockerfile).
-2. Add a **PostgreSQL** service to the project. On the app service, add a
-   variable reference: `DATABASE_URL` → the Postgres service's `DATABASE_URL`
-   (`postgres://…` URLs are normalized automatically; presets seed on first boot).
+2. Give it a Postgres. On Railway's free plan, use **[Neon](https://neon.tech)'s
+   free tier** instead of a Railway database: create a Neon project, copy its
+   connection string, and set it as `DATABASE_URL` on the app service.
+   Neon's `postgresql://…?sslmode=require` URLs work as-is (the dialect is
+   normalized automatically; presets seed on first boot). If your plan does
+   include Railway Postgres, a `DATABASE_URL` variable reference works the same.
 3. Set the remaining variables on the app service:
    `LLM_PROVIDER=gemini`, `DEFAULT_MODEL=gemini-2.5-flash-lite`,
    `GEMINI_API_KEY=…`, and optionally `GITHUB_TOKEN` (raises GitHub rate
